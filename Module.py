@@ -124,6 +124,60 @@ class mywindow(QtWidgets.QMainWindow):
             if ima in Temp:
                 self.ui.comboBox.setCurrentIndex(i)
 
+    def spis_nar_po_mk_id_op(self,mk,id,op):
+        sp = []
+        nar = F.otkr_f(F.tcfg('Naryad'),False,'|')
+        for i in range(1,len(nar)):
+            if nar[i][1].strip() == str(mk) and nar[i][25].strip() == str(id) and nar[i][24].strip() == str(op):
+                sost = 'Создан'
+                if nar[i][17].strip() != '' or nar[i][18].strip() != '':
+                    sost = 'Выдан'
+                    sp_jur = F.otkr_f(F.tcfg('BDzhurnal'),False,'|')
+                    fam = set()
+                    for j in range(len(sp_jur)):
+                        if sp_jur[j][2] == nar[i][0]:
+                            fam.add(sp_jur[j][3])
+                    fam = list(fam)
+                    if len(fam) != 0:
+                        sost = 'Начат'
+                        for j in range(len(sp_jur)):
+                            if sp_jur[j][2] == nar[i][0] and sp_jur[j][7] == 'Завершен':
+                                fam.remove(sp_jur[j][3])
+                                if len(fam) == 0:
+                                    sost = 'Завершен'
+                                    break
+                sp.append(nar[i][0] + ' ' + sost)
+        return sp
+
+    def otmetka_v_mk(self,nom_op,sp_nar,id,mk):
+        nom = mk
+        if F.nalich_file(F.scfg('mk_data') + os.sep + nom + '.txt') == False:
+            self.showDialog('Не обнаружен файл')
+            return
+        sp_tabl_mk  = F.otkr_f(F.scfg('mk_data') + os.sep + nom + '.txt',False,'|')
+        if sp_tabl_mk  == []:
+            self.showDialog('Некорректное содержимое МК')
+            return
+        for j in range(1,len(sp_tabl_mk)):
+            if sp_tabl_mk[j][6]==id:
+                for i in range(11, len(sp_tabl_mk[0]), 4):
+                    if sp_tabl_mk[j][i].strip() != '':
+                        obr = sp_tabl_mk[j][i].strip().split('$')
+                        obr2 = obr[-1].split(";")
+                        if str(nom_op) in obr2:
+                            text = '$'.join(sp_nar)
+                            sp_tabl_mk[j][i+2] = text
+                            F.zap_f(F.scfg('mk_data') + os.sep + nom + '.txt',sp_tabl_mk,'|')
+                            return
+
+    def zapis_v_mk(self):
+        sp_nar = F.otkr_f(F.tcfg('Naryad'), False, '|')
+        nom_mk = F.naiti_v_spis_1_1(sp_nar, 0, self.ui.label_10_tek_nar.text(), 1)
+        id_det = F.naiti_v_spis_1_1(sp_nar, 0, self.ui.label_10_tek_nar.text(), 25)
+        n_op = F.naiti_v_spis_1_1(sp_nar, 0, self.ui.label_10_tek_nar.text(), 24)
+        spis_nar_mk = self.spis_nar_po_mk_id_op(nom_mk, id_det, n_op)
+        self.otmetka_v_mk(n_op, spis_nar_mk, id_det, nom_mk)
+
     def Nachat_nar(self):
         # проверить  есть ли польщователь
         if self.ui.label_3_tek_polz.text() == '':
@@ -150,7 +204,10 @@ class mywindow(QtWidgets.QMainWindow):
             self.showDialog('Наряд ' + self.ui.label_10_tek_nar.text() + " запущен")
             self.History_nar(self.ui.comboBox_2_Naryad.currentText())
             self.Zapolnit_chertegi(self.ui.label_10_tek_nar.text())
+            self.zapis_v_mk()
             return
+
+
 
     def Pauza_nar(self):
         # проверить  есть ли польщователь
@@ -259,14 +316,14 @@ class mywindow(QtWidgets.QMainWindow):
 
         else:
             # сравнить время
-
-            with open(cfg['BDzhurnal'] + '\\BDzhurnal.txt', 'r') as f:
-                Stroki = f.readlines()
             sumsek = 0.0
             Temp = list()
-            for item in Stroki:
-                if '|' + self.ui.label_10_tek_nar.text() + '|' in item and "|" + self.ui.label_3_tek_polz.text() + "|" in item:
-                    Temp.append(item)
+            Stroki = F.otkr_f(F.tcfg('BDzhurnal'),False,'|')
+            for i in range(1,len(Stroki)):
+                if self.ui.label_10_tek_nar.text() == Stroki[i][0]:
+                    if self.ui.label_3_tek_polz.text() == Stroki[i][17] or self.ui.label_3_tek_polz.text() == Stroki[i][18]:
+                        Temp.append('|'.join(Stroki[i]))
+
             zakonchil = DT.today().strftime("%d.%m.%Y %H:%M:%S")
             Temp.append(zakonchil + '|' + str(DT.timestamp(DT.today())) + '|' + \
                         self.ui.label_10_tek_nar.text() \
@@ -276,8 +333,9 @@ class mywindow(QtWidgets.QMainWindow):
                         "|" + FNC.nomer_proekt_po_nom_nar(self.ui.label_10_tek_nar.text(), 8) + "|" + 'Завершен' + "|" + \
                         self.ui.textEdit_zamechain.toPlainText().strip().replace('\n',' ') + "\n")
             k_nar_vrem = ''
-            for p1 in range(0, len(Temp)):
-                Sp_temp = [x for x in Temp[p1].split('|')]
+            d2_p = ''
+            for p1 in range(len(Temp)):
+                Sp_temp = Temp[p1].split('|')
                 if p1 == 0:
                     d2_p = Sp_temp[1]
                 if d2_p != 0:
@@ -286,7 +344,6 @@ class mywindow(QtWidgets.QMainWindow):
                     d2 = DT.strptime(DT.fromtimestamp(float(Sp_temp[1])).strftime("%d.%m.%Y"), "%d.%m.%Y")
                     d3 = (d2 - d1).days
                     if d3>0:
-
                         k_nar_vrem = k_nar_vrem + "*"*d3
                 if Sp_temp[7] == 'Начат':
                     d2_p = Sp_temp[1]
@@ -297,12 +354,10 @@ class mywindow(QtWidgets.QMainWindow):
 
             # прочитать процент
             procent = float(cfg['Procent'])
-            with open(cfg['Naryad'] + '\\Naryad.txt', 'r') as f:
-                Stroki = f.readlines()
-            for line in Stroki:
-                if self.ui.label_10_tek_nar.text() == line[:len(self.ui.label_10_tek_nar.text())]:
-                    arr = [x for x in line.split('|')]
-                    teor_chas = round(float(arr[5]), 2)
+            Stroki_nar = F.otkr_f(F.tcfg('Naryad'), False, '|')
+            for line in Stroki_nar:
+                if self.ui.label_10_tek_nar.text() == line[0]:
+                    teor_chas = round(float(line[5]), 2)
                     break
 
             # рассчитать часы
@@ -313,8 +368,7 @@ class mywindow(QtWidgets.QMainWindow):
                     return
 
             # сделать запись
-            with open(cfg['BDzhurnal'] + '\\BDzhurnal.txt', 'r') as f:
-                Stroki_g = f.readlines()
+            Stroki_g = F.otkr_f(F.tcfg('BDzhurnal'),False,'')
             Stroki_g.append(DT.today().strftime("%d.%m.%Y %H:%M:%S") + '|' + str(DT.timestamp(DT.today())) + '|' + \
                             self.ui.label_10_tek_nar.text() \
                             + "|" + self.ui.label_3_tek_polz.text() + "|" + \
@@ -322,80 +376,67 @@ class mywindow(QtWidgets.QMainWindow):
                             "|" + FNC.nomer_proekt_po_nom_nar(self.ui.label_10_tek_nar.text(), 14) + \
                             "|" + FNC.nomer_proekt_po_nom_nar(self.ui.label_10_tek_nar.text(), 8) + "|" + 'Завершен' + \
                             "|Теор=" + str(teor_chas) + "|"  + k_nar_vrem +  "Факт=" + str(sumchas) + "|" + \
-                            self.ui.textEdit_zamechain.toPlainText().strip().replace('\n',' ') + "\n")
-            with open(cfg['BDzhurnal'] + '\\BDzhurnal.txt', 'w') as f:
-                for item in Stroki_g:
-                    f.write(item)
+                            self.ui.textEdit_zamechain.toPlainText().strip().replace('\n',' '))
+            F.zap_f(F.tcfg('BDzhurnal'),Stroki_g,'')
 
             # запись в оповещение
             # if FNC.nomer_proekt_po_nom_nar(self.ui.label_10_tek_nar.text(), 8) == 'Последний':
-            vid_po_nar = FNC.nomer_proekt_po_nom_nar(self.ui.label_10_tek_nar.text(), 11)
+
+            vid_po_nar = F.naiti_v_spis_1_1(Stroki_nar,0,self.ui.label_10_tek_nar.text(),11)
+            npr_po_nar = F.naiti_v_spis_1_1(Stroki_nar, 0, self.ui.label_10_tek_nar.text(), 3)
+            zadanie = F.naiti_v_spis_1_1(Stroki_nar, 0, self.ui.label_10_tek_nar.text(), 4)
             body = DT.today().strftime("%d.%m.%Y %H:%M:%S") + '|' + self.ui.label_10_tek_nar.text() + '|' + \
-                   FNC.nomer_proekt_po_nom_nar(self.ui.label_10_tek_nar.text(), 3) + '|' + \
+                   npr_po_nar + '|' + \
                    vid_po_nar + '|' + \
                    self.ui.label_3_tek_polz.text() + '|Завершен|' + \
-                   FNC.nomer_proekt_po_nom_nar(self.ui.label_10_tek_nar.text(), 4) + "\n"
-
-            with open(cfg['Opoveshenie'] + '\\Opoveshenie.txt', 'r') as f:
-                Stroki_opov = f.readlines()
+                   zadanie + "\n"
+            Stroki_opov = F.otkr_f(F.tcfg('Opoveshenie'),False)
             Stroki_opov.append(body)
-            with open(cfg['Opoveshenie'] + '\\Opoveshenie.txt', 'w') as f:
-                for item in Stroki_opov:
-                    f.write(item)
+            F.zap_f(F.tcfg('Opoveshenie'), Stroki_opov, '')
 
-            with open(cfg['Opoveshenie_arh'] + '\\Opoveshenie_arh.txt', 'r') as f:
-                Stroki_opov = f.readlines()
+            Stroki_opov = F.otkr_f(F.tcfg('Opoveshenie_arh'), False)
             Stroki_opov.append(body)
-            with open(cfg['Opoveshenie_arh'] + '\\Opoveshenie_arh.txt', 'w') as f:
-                for item in Stroki_opov:
-                    f.write(item)
+            F.zap_f(F.tcfg('Opoveshenie_arh'), Stroki_opov, '')
 
 
             spis_nar = self.obnov_spis_naryadov(self.ui.label_3_tek_polz.text())
             if len(spis_nar) == 0:
-                with open(cfg['Opoveshenie'] + '\\Opoveshenie.txt', 'r') as f:
-                    Stroki_opov = f.readlines()
+                Stroki_opov = F.otkr_f(F.tcfg('Opoveshenie'),False)
                 Stroki_opov.append(self.ui.label_3_tek_polz.text() + " остался без заданий. Уважаемые коллеги, пожалуйста примите меры!" + "\n")
-                with open(cfg['Opoveshenie'] + '\\Opoveshenie.txt', 'w') as f:
-                    for item in Stroki_opov:
-                        f.write(item)
+                F.zap_f(F.tcfg('Opoveshenie'), Stroki_opov, '')
 
-                with open(cfg['Opoveshenie_arh'] + '\\Opoveshenie_arh.txt', 'r') as f:
-                    Stroki_opov = f.readlines()
+                Stroki_opov = F.otkr_f(F.tcfg('Opoveshenie_arh'), False)
                 Stroki_opov.append(
                     self.ui.label_3_tek_polz.text() + " остался без заданий. Уважаемые коллеги, пожалуйста примите меры!" + "\n")
-                with open(cfg['Opoveshenie_arh'] + '\\Opoveshenie_arh.txt', 'w') as f:
-                    for item in Stroki_opov:
-                        f.write(item)
+                F.zap_f(F.tcfg('Opoveshenie_arh'), Stroki_opov, '')
 
 
             # проверить наряд на наичие акта
-            for item in Stroki:
-                if item.startswith(self.ui.label_10_tek_nar.text()) == True:
-                    arr_nar = [x for x in item.split('|')]
+            for item in Stroki_nar:
+                if item[0] == self.ui.label_10_tek_nar.text():
+                    arr_nar = item
                     if ' по наряду ' in arr_nar[4] and 'Акт №' in arr_nar[4]:
                         arr_nar2 = arr_nar[4].split(' по наряду')
                         N_act = arr_nar2[0].replace('Акт №', '')
                         # запись в журнал актов
-                        with open(cfg['BDact'] + '\\BDact.txt', 'r') as f:
-                            Stroki_act = f.readlines()
+                        Stroki_act = F.otkr_f(F.tcfg('BDact'), False,'|')
+
                         for i in range(0, len(Stroki_act)):
-                            if Stroki_act[i].startswith('Номер акта:' + N_act + "|") == True:
-                                Stroki_act[i] = Stroki_act[i].strip() + '(Исправлен по наряду №' + \
+                            if 'Номер акта:' + N_act == Stroki_act[i][0]:
+                                Stroki_act[i][7] = Stroki_act[i][7].strip() + '(Исправлен по наряду №' + \
                                                 self.ui.label_10_tek_nar.text() + ' t=' + str(sumchas) + ' час.)' + '\n'
                                 break
-                        with open(cfg['BDact'] + '\\BDact.txt', 'w') as f:
-                            for item in Stroki_act:
-                                f.write(item)
+                        F.zap_f(F.tcfg('BDact'), Stroki_act, '')
 
+            self.zapis_v_mk()
             self.ui.textEdit_zamechain.clear()
-
             self.showDialog('Наряд ' + self.ui.label_10_tek_nar.text() + " завершен")
             self.obnov_spis_naryadov(self.ui.label_3_tek_polz.text())
             self.ui.label_10_tek_nar.clear()
             self.ui.listWidget.clear()
             self.ui.listWidget_3_Temp.clear()
             self.ui.listWidget_2.clear()
+
             return
 
     def Vihod(self):
@@ -564,7 +605,7 @@ class mywindow(QtWidgets.QMainWindow):
     def Zapolnit_chertegi(self, NNar):
         self.ui.listWidget.clear()
         self.ui.listWidget_3_Temp.clear()
-        Stroki = FNC.otkr_f(cfg['Naryad'] + '\\Naryad.txt',False,"|")
+        Stroki = F.otkr_f(cfg['Naryad'] + '\\Naryad.txt',False,"|")
         arr = None
         for line in range(len(Stroki)):
             if Stroki[line][0] == NNar:
