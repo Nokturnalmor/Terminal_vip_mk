@@ -124,11 +124,11 @@ class mywindow(QtWidgets.QMainWindow):
             if ima in Temp:
                 self.ui.comboBox.setCurrentIndex(i)
 
-    def spis_nar_po_mk_id_op(self,mk,id,op):
+    def spis_nar_po_mk_id_op(self,mk,id,spis_op):
         sp = []
         nar = F.otkr_f(F.tcfg('Naryad'),False,'|')
         for i in range(1,len(nar)):
-            if nar[i][1].strip() == str(mk) and nar[i][25].strip() == str(id) and nar[i][24].strip() == str(op):
+            if nar[i][1].strip() == str(mk) and nar[i][25].strip() == str(id) and nar[i][24].strip() in spis_op:
                 sost = 'Создан'
                 if nar[i][17].strip() != '' or nar[i][18].strip() != '':
                     sost = 'Выдан'
@@ -149,34 +149,48 @@ class mywindow(QtWidgets.QMainWindow):
                 sp.append(nar[i][0] + ' ' + sost)
         return sp
 
-    def otmetka_v_mk(self,nom_op,sp_nar,id,mk):
-        nom = mk
-        if F.nalich_file(F.scfg('mk_data') + os.sep + nom + '.txt') == False:
-            self.showDialog('Не обнаружен файл')
-            return
-        sp_tabl_mk  = F.otkr_f(F.scfg('mk_data') + os.sep + nom + '.txt',False,'|')
-        if sp_tabl_mk  == []:
-            self.showDialog('Некорректное содержимое МК')
-            return
+    def otmetka_v_mk(self,nom,spis_op,sp_nar,id,sp_tabl_mk):
         for j in range(1,len(sp_tabl_mk)):
             if sp_tabl_mk[j][6]==id:
                 for i in range(11, len(sp_tabl_mk[0]), 4):
                     if sp_tabl_mk[j][i].strip() != '':
                         obr = sp_tabl_mk[j][i].strip().split('$')
                         obr2 = obr[-1].split(";")
-                        if str(nom_op) in obr2:
+                        if spis_op == obr2:
                             text = '$'.join(sp_nar)
                             sp_tabl_mk[j][i+2] = text
                             F.zap_f(F.scfg('mk_data') + os.sep + nom + '.txt',sp_tabl_mk,'|')
                             return
+
+    def spis_op_po_mk_id_op(self,sp_tabl_mk,id,op):
+        for j in range(1, len(sp_tabl_mk)):
+            if sp_tabl_mk[j][6] == id:
+                for i in range(11, len(sp_tabl_mk[0]), 4):
+                    if sp_tabl_mk[j][i].strip() != '':
+                        obr = sp_tabl_mk[j][i].strip().split('$')
+                        obr2 = obr[-1].split(";")
+                        if op in obr2:
+                            return obr2
+                        return None
 
     def zapis_v_mk(self):
         sp_nar = F.otkr_f(F.tcfg('Naryad'), False, '|')
         nom_mk = F.naiti_v_spis_1_1(sp_nar, 0, self.ui.label_10_tek_nar.text(), 1)
         id_det = F.naiti_v_spis_1_1(sp_nar, 0, self.ui.label_10_tek_nar.text(), 25)
         n_op = F.naiti_v_spis_1_1(sp_nar, 0, self.ui.label_10_tek_nar.text(), 24)
-        spis_nar_mk = self.spis_nar_po_mk_id_op(nom_mk, id_det, n_op)
-        self.otmetka_v_mk(n_op, spis_nar_mk, id_det, nom_mk)
+        if F.nalich_file(F.scfg('mk_data') + os.sep + nom_mk + '.txt') == False:
+            self.showDialog('Не обнаружен файл')
+            return
+        sp_tabl_mk  = F.otkr_f(F.scfg('mk_data') + os.sep + nom_mk + '.txt',False,'|')
+        if sp_tabl_mk  == []:
+            self.showDialog('Некорректное содержимое МК')
+            return
+        spis_op = self.spis_op_po_mk_id_op(sp_tabl_mk,id_det,n_op)
+        if spis_op == None:
+            self.showDialog('Некорректное содержимое списка операций')
+            return
+        spis_nar_mk = self.spis_nar_po_mk_id_op(nom_mk,id_det,spis_op)
+        self.otmetka_v_mk(nom_mk,spis_op, spis_nar_mk, id_det,sp_tabl_mk)
 
     def Nachat_nar(self):
         # проверить  есть ли польщователь
