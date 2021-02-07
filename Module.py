@@ -171,7 +171,7 @@ class mywindow(QtWidgets.QMainWindow):
                         obr2 = obr[-1].split(";")
                         if op in obr2:
                             return obr2
-                        return None
+                return None
 
     def zapis_v_mk(self):
         sp_nar = F.otkr_f(F.tcfg('Naryad'), False, '|')
@@ -183,14 +183,82 @@ class mywindow(QtWidgets.QMainWindow):
             return
         sp_tabl_mk  = F.otkr_f(F.scfg('mk_data') + os.sep + nom_mk + '.txt',False,'|')
         if sp_tabl_mk  == []:
-            self.showDialog('Некорректное содержимое МК')
+            self.showDialog('Не корректное содержимое МК')
             return
         spis_op = self.spis_op_po_mk_id_op(sp_tabl_mk,id_det,n_op)
         if spis_op == None:
-            self.showDialog('Некорректное содержимое списка операций')
+            self.showDialog('Не корректное содержимое списка операций')
             return
         spis_nar_mk = self.spis_nar_po_mk_id_op(nom_mk,id_det,spis_op)
+        ostatok = 0
+        for op in spis_op:
+            nom_op = op
+            ostatok += self.summ_dost_det_po_nar(nom_mk, id_det, nom_op,sp_tabl_mk,sp_nar,False,True)
+        if ostatok <= 0:
+            flag = 1
+            for i in spis_nar_mk:
+                tmp = i.split(' ')
+                if tmp[1] != 'Завершен':
+                    flag = 0
+                    break
+            if flag == 1:
+                spis_nar_mk.insert(0,'Полный компл.')
         self.otmetka_v_mk(nom_mk,spis_op, spis_nar_mk, id_det,sp_tabl_mk)
+
+    def max_det_skompl(self,nom_op,id_dse,sp_tabl_mk):
+        for j in range(len(sp_tabl_mk)):
+            if sp_tabl_mk[j][6] == id_dse:
+                for i in range(11,len(sp_tabl_mk[0]),4):
+                    if sp_tabl_mk[j][i].strip() != '':
+                        obr = sp_tabl_mk[j][i].strip().split('$')
+                        obr2 = obr[-1].split(";")
+                        if str(nom_op) in obr2:
+                            if sp_tabl_mk[j][i+1].strip() == '':
+                                return 0
+                            kompl = sp_tabl_mk[j][i+1].strip().split(' шт.')
+                            return int(kompl[0])
+
+
+    def summ_dost_det_po_nar(self,nom_mar,id_dse,nom_op,sp_tabl_mk,sp_nar,zakr=False,absol = False):
+
+        sp_zhur = F.otkr_f(F.tcfg('BDzhurnal'),False,'|')
+        if sp_nar == ['']:
+            self.showDialog('Не найдена база с нарядами')
+            return
+        if absol == False:
+            max_det = self.max_det_skompl(nom_op,id_dse,sp_tabl_mk)
+        else:
+            for i in range(len(sp_tabl_mk)):
+                if sp_tabl_mk[i][6] == id_dse:
+                    max_det = int(sp_tabl_mk[i][2])
+                    break
+        summ_det = 0
+        for i in range(len(sp_nar)):
+            if sp_nar[i][1] == nom_mar and sp_nar[i][25] == id_dse and sp_nar[i][24] == nom_op and sp_nar[i][21] == '':
+                if zakr == True:
+                    mn = []
+                    flag = 1
+                    for j in range(len(sp_zhur)):
+                        if sp_zhur[j][2] == sp_nar[i][0]:
+                            mn.append(sp_zhur[j][3])
+                    if len(mn) > 0:
+                        mn = set(mn)
+                        mn = list(mn)
+                        for j in range(len(sp_zhur)):
+                            if sp_zhur[j][2] == sp_nar[i][0] and sp_zhur[j][7] == 'Завершен':
+                                if sp_zhur[j][3] in mn:
+                                    mn.remove(sp_zhur[j][3])
+                            if len(mn) == 0:
+                                flag = 0
+                                break
+                        if flag == 0:
+                            summ_det+= F.valm(sp_nar[i][12].strip())
+                else:
+                    summ_det += F.valm(sp_nar[i][12].strip())
+        if max_det - summ_det < 0:
+            return 0
+        return max_det - summ_det
+
 
     def Nachat_nar(self):
         # проверить  есть ли польщователь
