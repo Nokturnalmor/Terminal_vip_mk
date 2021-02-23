@@ -269,25 +269,28 @@ class mywindow(QtWidgets.QMainWindow):
             self.showDialog('Не завершен наряд ' + self.ui.label_10_tek_nar.text())
             return
         # записать начало в журнал
-        else:
-            self.ui.label_10_tek_nar.setText(self.ui.comboBox_2_Naryad.currentText())
-            with open(cfg['BDzhurnal'] + '\\BDzhurnal.txt', 'r') as f:
-                Stroki = f.readlines()
-            Stroki.append(DT.today().strftime("%d.%m.%Y %H:%M:%S") + '|' + str(DT.timestamp(DT.today())) + \
-                          '|' + self.ui.label_10_tek_nar.text() \
-                          + "|" + self.ui.label_3_tek_polz.text() + "|" + FNC.nomer_proekt_po_nom_nar(
-                self.ui.label_10_tek_nar.text(), 3) \
-                          + "|" + FNC.nomer_proekt_po_nom_nar(self.ui.label_10_tek_nar.text(), 14) \
-                          + "|" + FNC.nomer_proekt_po_nom_nar(self.ui.label_10_tek_nar.text(),
-                                                              8) + "|" + 'Начат' + "|" + "\n")
-            with open(cfg['BDzhurnal'] + '\\BDzhurnal.txt', 'w') as f:
-                for item in Stroki:
-                    f.write(item)
-            self.showDialog('Наряд ' + self.ui.label_10_tek_nar.text() + " запущен")
-            self.History_nar(self.ui.comboBox_2_Naryad.currentText())
-            self.Zapolnit_chertegi(self.ui.label_10_tek_nar.text())
-            self.zapis_v_mk()
+        if self.ui.comboBox_2_Naryad.currentText() == '':
+            self.showDialog('Не выбран наряд')
             return
+
+        self.ui.label_10_tek_nar.setText(self.ui.comboBox_2_Naryad.currentText())
+        with open(cfg['BDzhurnal'] + '\\BDzhurnal.txt', 'r') as f:
+            Stroki = f.readlines()
+        Stroki.append(DT.today().strftime("%d.%m.%Y %H:%M:%S") + '|' + str(DT.timestamp(DT.today())) + \
+                      '|' + self.ui.label_10_tek_nar.text() \
+                      + "|" + self.ui.label_3_tek_polz.text() + "|" + FNC.nomer_proekt_po_nom_nar(
+            self.ui.label_10_tek_nar.text(), 3) \
+                      + "|" + FNC.nomer_proekt_po_nom_nar(self.ui.label_10_tek_nar.text(), 14) \
+                      + "|" + FNC.nomer_proekt_po_nom_nar(self.ui.label_10_tek_nar.text(),
+                                                          8) + "|" + 'Начат' + "|" + "\n")
+        with open(cfg['BDzhurnal'] + '\\BDzhurnal.txt', 'w') as f:
+            for item in Stroki:
+                f.write(item)
+        self.showDialog('Наряд ' + self.ui.label_10_tek_nar.text() + " запущен")
+        self.History_nar(self.ui.comboBox_2_Naryad.currentText())
+        self.Zapolnit_chertegi(self.ui.label_10_tek_nar.text())
+        self.zapis_v_mk()
+        return
 
 
 
