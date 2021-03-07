@@ -149,7 +149,7 @@ class mywindow(QtWidgets.QMainWindow):
                 sp.append(nar[i][0] + ' ' + sost)
         return sp
 
-    def otmetka_v_mk(self,nom,spis_op,sp_nar,id,sp_tabl_mk):
+    def otmetka_v_mk(self,nom,spis_op,sp_nar,id,sp_tabl_mk,flag_otk):
         for j in range(1,len(sp_tabl_mk)):
             if sp_tabl_mk[j][6]==id:
                 for i in range(11, len(sp_tabl_mk[0]), 4):
@@ -159,6 +159,9 @@ class mywindow(QtWidgets.QMainWindow):
                         if spis_op == obr2:
                             text = '$'.join(sp_nar)
                             sp_tabl_mk[j][i+2] = text
+                            if flag_otk == 1:
+                                text_act = self.spis_act_po_mk_id_op(nom,id,spis_op)
+                                sp_tabl_mk[j][i + 3] = '$'.join(text_act)
                             F.zap_f(F.scfg('mk_data') + os.sep + nom + '.txt',sp_tabl_mk,'|')
                             return
 
@@ -173,7 +176,7 @@ class mywindow(QtWidgets.QMainWindow):
                             return obr2
                 return None
 
-    def zapis_v_mk(self):
+    def zapis_v_mk(self,flag_otk=0):
         sp_nar = F.otkr_f(F.tcfg('Naryad'), False, '|')
         nom_mk = F.naiti_v_spis_1_1(sp_nar, 0, self.ui.label_10_tek_nar.text(), 1)
         id_det = F.naiti_v_spis_1_1(sp_nar, 0, self.ui.label_10_tek_nar.text(), 25)
@@ -203,7 +206,7 @@ class mywindow(QtWidgets.QMainWindow):
                     break
             if flag == 1:
                 spis_nar_mk.insert(0,'Полный компл.')
-        self.otmetka_v_mk(nom_mk,spis_op, spis_nar_mk, id_det,sp_tabl_mk)
+        self.otmetka_v_mk(nom_mk,spis_op, spis_nar_mk, id_det,sp_tabl_mk,flag_otk)
 
     def max_det_skompl(self,nom_op,id_dse,sp_tabl_mk):
         for j in range(len(sp_tabl_mk)):
@@ -495,25 +498,44 @@ class mywindow(QtWidgets.QMainWindow):
                     self.ui.label_3_tek_polz.text() + " остался без заданий. Уважаемые коллеги, пожалуйста примите меры!" + "\n")
                 F.zap_f(F.tcfg('Opoveshenie_arh'), Stroki_opov, '')
 
+            flag_otk = 0
+            spis_priznak_prof_otk = F.scfg('Prof_otk').split(",")
+            spis_empl = F.otkr_f(F.tcfg('employee'),True,',',False,False)
+            for i in range(len(spis_empl)):
+                fio_tmp = '  '.join(spis_empl[i])
+                if fio_tmp == self.ui.label_3_tek_polz.text():
+                    for j in spis_priznak_prof_otk:
+                        if j in spis_empl[i][3]:
+                            flag_otk = 1
+                            break
+                    break
 
+            if flag_otk == 1 or flag_otk == 0:
             # проверить наряд на наичие акта
-            for item in Stroki_nar:
-                if item[0] == self.ui.label_10_tek_nar.text():
-                    arr_nar = item
-                    if ' по наряду ' in arr_nar[4] and 'Акт №' in arr_nar[4]:
-                        arr_nar2 = arr_nar[4].split(' по наряду')
-                        N_act = arr_nar2[0].replace('Акт №', '')
-                        # запись в журнал актов
-                        Stroki_act = F.otkr_f(F.tcfg('BDact'), False,'|')
+                for item in Stroki_nar:
+                    if item[0] == self.ui.label_10_tek_nar.text():
+                        arr_nar = item
+                        if ' по наряду ' in arr_nar[4] and 'Акт №' in arr_nar[4]:
+                            arr_nar2 = arr_nar[4].split(' по наряду')
+                            N_act = arr_nar2[0].replace('Акт №', '')
+                            # запись в журнал актов
+                            Stroki_act = F.otkr_f(F.tcfg('BDact'), False,'|')
+                            if Stroki_act == []:
+                                F.msgbox('Не корректный BDact')
+                                return
+                            for i in range(0, len(Stroki_act)):
+                                if 'Номер акта:' + N_act == Stroki_act[i][0]:
+                                    if flag_otk == 1:
+                                        Stroki_act[i][7] = Stroki_act[i][7].strip() + '(Исправлен по наряду №' + \
+                                                        self.ui.label_10_tek_nar.text() + ' t=' + str(sumchas) + ' час.)'
+                                    else:
+                                        Stroki_act[i][7] = Stroki_act[i][7].strip() + '(Исправлялся по наряду №' + \
+                                                           self.ui.label_10_tek_nar.text() + ' t=' + str(
+                                            sumchas) + ' час.)'
+                                    break
+                            F.zap_f(F.tcfg('BDact'), Stroki_act, '|')
 
-                        for i in range(0, len(Stroki_act)):
-                            if 'Номер акта:' + N_act == Stroki_act[i][0]:
-                                Stroki_act[i][7] = Stroki_act[i][7].strip() + '(Исправлен по наряду №' + \
-                                                self.ui.label_10_tek_nar.text() + ' t=' + str(sumchas) + ' час.)' + '\n'
-                                break
-                        F.zap_f(F.tcfg('BDact'), Stroki_act, '')
-
-            self.zapis_v_mk()
+            self.zapis_v_mk(flag_otk)
             self.ui.textEdit_zamechain.clear()
             self.showDialog('Наряд ' + self.ui.label_10_tek_nar.text() + " завершен")
             self.obnov_spis_naryadov(self.ui.label_3_tek_polz.text())
@@ -523,6 +545,23 @@ class mywindow(QtWidgets.QMainWindow):
             self.ui.listWidget_2.clear()
 
             return
+
+    def spis_act_po_mk_id_op(self, mk, id, spis_op):
+        sp = []
+        nar = F.otkr_f(F.tcfg('Naryad'), False, '|')
+        sp_act = F.otkr_f(F.tcfg('BDact'), False, '|')
+        for i in range(1, len(nar)):
+            if nar[i][1].strip() == str(mk) and nar[i][25].strip() == str(id) and nar[i][24].strip() in spis_op:
+                for j in range(len(sp_act)):
+                    if sp_act[j][3] == 'Номер наряда:' + nar[i][0].strip():
+                        sost = ''
+                        if '(Исправлен по наряду №' in sp_act[j][7]:
+                            sost = 'Исправлен'
+                        elif sp_act[j][6] == 'Категория брака:Неисправимый':
+                            sost = 'Неисп-мый'
+                        nom_acta = sp_act[j][0].replace('Номер акта:', '')
+                        sp.append(nom_acta + ' ' + sost)
+        return sp
 
     def Vihod(self):
         if self.ui.label_3_tek_polz.text() == '':
