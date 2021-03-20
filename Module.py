@@ -408,8 +408,8 @@ class mywindow(QtWidgets.QMainWindow):
             Temp = list()
             Stroki = F.otkr_f(F.tcfg('BDzhurnal'),False,'|')
             for i in range(1,len(Stroki)):
-                if self.ui.label_10_tek_nar.text() == Stroki[i][0]:
-                    if self.ui.label_3_tek_polz.text() == Stroki[i][17] or self.ui.label_3_tek_polz.text() == Stroki[i][18]:
+                if self.ui.label_10_tek_nar.text() == Stroki[i][2]:
+                    if self.ui.label_3_tek_polz.text() == Stroki[i][3]:
                         Temp.append('|'.join(Stroki[i]))
 
             zakonchil = DT.today().strftime("%d.%m.%Y %H:%M:%S")
@@ -490,11 +490,11 @@ class mywindow(QtWidgets.QMainWindow):
             spis_nar = self.obnov_spis_naryadov(self.ui.label_3_tek_polz.text())
             if len(spis_nar) == 0:
                 Stroki_opov = F.otkr_f(F.tcfg('Opoveshenie'),False)
-                Stroki_opov.append(self.ui.label_3_tek_polz.text() + " остался без заданий. Уважаемые коллеги, пожалуйста примите меры!" + "\n")
+                Stroki_opov.append(F.now() + ' ' + self.ui.label_3_tek_polz.text() + " остался без заданий. Уважаемые коллеги, пожалуйста примите меры!" + "\n")
                 F.zap_f(F.tcfg('Opoveshenie'), Stroki_opov, '')
 
                 Stroki_opov = F.otkr_f(F.tcfg('Opoveshenie_arh'), False)
-                Stroki_opov.append(
+                Stroki_opov.append(F.now() + ' ' +
                     self.ui.label_3_tek_polz.text() + " остался без заданий. Уважаемые коллеги, пожалуйста примите меры!" + "\n")
                 F.zap_f(F.tcfg('Opoveshenie_arh'), Stroki_opov, '')
 
@@ -509,7 +509,7 @@ class mywindow(QtWidgets.QMainWindow):
                             flag_otk = 1
                             break
                     break
-
+            flag_brak = False
             if flag_otk == 1 or flag_otk == 0:
             # проверить наряд на наичие акта
                 for item in Stroki_nar:
@@ -532,10 +532,13 @@ class mywindow(QtWidgets.QMainWindow):
                                         Stroki_act[i][7] = Stroki_act[i][7].strip() + '(Исправлялся по наряду №' + \
                                                            self.ui.label_10_tek_nar.text() + ' t=' + str(
                                             sumchas) + ' час.)'
+                                        flag_brak = True
                                     break
                             F.zap_f(F.tcfg('BDact'), Stroki_act, '|')
 
             self.zapis_v_mk(flag_otk)
+            if flag_brak == False:
+                self.otmetka_progressa_mk()
             self.ui.textEdit_zamechain.clear()
             self.showDialog('Наряд ' + self.ui.label_10_tek_nar.text() + " завершен")
             self.obnov_spis_naryadov(self.ui.label_3_tek_polz.text())
@@ -545,6 +548,46 @@ class mywindow(QtWidgets.QMainWindow):
             self.ui.listWidget_2.clear()
 
             return
+
+    def otmetka_progressa_mk(self):
+        sp_nar = F.otkr_f(F.tcfg('Naryad'), False, '|')
+        nom_mk = F.naiti_v_spis_1_1(sp_nar, 0, self.ui.label_10_tek_nar.text(), 1)
+
+        spis_mk =  F.otkr_f(F.scfg('mk_data') + os.sep + nom_mk + '.txt',False,'|')
+        flag_zaversh = True
+        nach_kol = F.nom_kol_po_im_v_shap(spis_mk,'Сумм.кол-во')+1
+        for i in range(1,len(spis_mk)):
+            for j in range(nach_kol,len(spis_mk[i]),4):
+                if spis_mk[i][j] != '':
+                    if "(полный компл.)" not in spis_mk[i][j+1]:
+                        flag_zaversh = False
+                        return
+                    if "Полный компл." not in spis_mk[i][j+2]:
+                        flag_zaversh = False
+                        return
+                    if spis_mk[i][j+3] != '':
+                        arr_tmp = spis_mk[i][j+3].split('$')
+                        for k in arr_tmp:
+                            if "Неисп-мый" in k:
+                                flag_zaversh = False
+                                return
+
+                            arr_tmp2 = k.split(' ')
+                            if len(arr_tmp2) == 2:
+                                if arr_tmp2[1] == "":
+                                    flag_zaversh = False
+                                    return
+                            else:
+                                flag_zaversh = False
+                                return
+        if flag_zaversh == True:
+            spis_mk_bd = F.otkr_f(F.tcfg('bd_mk'), separ='|')
+            for i in range(len(spis_mk_bd)):
+                if spis_mk_bd[i][0] == nom_mk:
+                    spis_mk_bd[i][F.nom_kol_po_im_v_shap(spis_mk_bd,'Прогресс')] = "Завершено"
+                    F.zap_f(F.tcfg('bd_mk'),spis_mk_bd,'|')
+                    return
+
 
     def spis_act_po_mk_id_op(self, mk, id, spis_op):
         sp = []
