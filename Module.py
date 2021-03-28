@@ -601,7 +601,10 @@ class mywindow(QtWidgets.QMainWindow):
                         if '(Исправлен по наряду №' in sp_act[j][7]:
                             sost = 'Исправлен'
                         elif sp_act[j][6] == 'Категория брака:Неисправимый':
-                            sost = 'Неисп-мый'
+                            if '(Изгот.вновь по МК №' in sp_act[j][7]:
+                                sost = 'Изгот.вновь'
+                            else:
+                                sost = 'Неисп-мый'
                         nom_acta = sp_act[j][0].replace('Номер акта:', '')
                         sp.append(nom_acta + ' ' + sost)
         return sp
