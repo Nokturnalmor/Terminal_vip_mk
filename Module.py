@@ -486,8 +486,9 @@ class mywindow(QtWidgets.QMainWindow):
             Stroki_opov.append(body)
             F.zap_f(F.tcfg('Opoveshenie_arh'), Stroki_opov, '')
 
+            Stroki_g = F.otkr_f(F.tcfg('BDzhurnal'), False, '|')
+            spis_nar = self.obnov_spis_naryadov(self.ui.label_3_tek_polz.text(),Stroki_g)
 
-            spis_nar = self.obnov_spis_naryadov(self.ui.label_3_tek_polz.text())
             if len(spis_nar) == 0:
                 Stroki_opov = F.otkr_f(F.tcfg('Opoveshenie'),False)
                 Stroki_opov.append(F.now() + ' ' + self.ui.label_3_tek_polz.text() + " остался без заданий. Уважаемые коллеги, пожалуйста примите меры!" + "\n")
@@ -541,7 +542,6 @@ class mywindow(QtWidgets.QMainWindow):
                 self.otmetka_progressa_mk()
             self.ui.textEdit_zamechain.clear()
             self.showDialog('Наряд ' + self.ui.label_10_tek_nar.text() + " завершен")
-            self.obnov_spis_naryadov(self.ui.label_3_tek_polz.text())
             self.ui.label_10_tek_nar.clear()
             self.ui.listWidget.clear()
             self.ui.listWidget_3_Temp.clear()
@@ -706,24 +706,20 @@ class mywindow(QtWidgets.QMainWindow):
     def but_obnov_spis_naryadov(self):
         if self.ui.label_3_tek_polz.text() == "":
             return
-        self.obnov_spis_naryadov(self.ui.label_3_tek_polz.text())
-
-        with open(cfg['BDzhurnal'] + '\\BDzhurnal.txt', 'r') as f:
-            Stroki = f.readlines()
-        for p1 in range(len(Stroki) - 1, 0, -1):
-            if "|Начат|" in Stroki[p1] and "|" + self.ui.label_3_tek_polz.text() + "|" in Stroki[p1]:
-                item = [x for x in Stroki[p1].split('|')]
+        Stroki = F.otkr_f(F.tcfg('BDzhurnal'), False, "|")
+        self.obnov_spis_naryadov(self.ui.label_3_tek_polz.text(),Stroki)
+        for p1 in range(len(Stroki) - 1, -1, -1):
+            if "Начат" == Stroki[p1][7] and self.ui.label_3_tek_polz.text() == Stroki[p1][3]:
+                item = Stroki[p1]
                 flag_nach = 1
                 for p2 in range(p1 + 1, len(Stroki)):
-                    if "|Завершен|" in Stroki[p2] and "|" + item[2] + "|" in Stroki[p2] and "|" + \
-                            self.ui.label_3_tek_polz.text() + "|" in Stroki[p2] or \
-                            "|Приостановлен|" in Stroki[p2] and "|" + item[2] + "|" in Stroki[p2] and \
-                            "|" + self.ui.label_3_tek_polz.text() + "|" in Stroki[p2]:
-                        flag_nach = 0
-                        break
+                    if item[2] == Stroki[p2][2] and \
+                            self.ui.label_3_tek_polz.text() == Stroki[p2][3]:
+                        if "Завершен" == Stroki[p2][7] or "Приостановлен" == Stroki[p2][7]:
+                            flag_nach = 0
+                            break
                 if flag_nach == 1:
                     self.ui.label_10_tek_nar.setText(item[2])
-
                     self.Zapolnit_chertegi(item[2])
 
 
@@ -748,12 +744,13 @@ class mywindow(QtWidgets.QMainWindow):
         if parol == True:
             self.ui.label_3_tek_polz.setText(self.ui.comboBox.currentText())
             self.ui.lineEdit_2.clear()
-            self.obnov_spis_naryadov(self.ui.label_3_tek_polz.text())
+            Stroki = F.otkr_f(F.tcfg('BDzhurnal'), False, '|')
+            self.obnov_spis_naryadov(self.ui.label_3_tek_polz.text(),Stroki)
             self.ui.comboBox.setCurrentIndex(0)
             opovesh_body = FNC.opovesh().strip()
             if opovesh_body != '':
                 self.showDialog(opovesh_body)
-            Stroki = F.otkr_f(F.tcfg('BDzhurnal'),False,'|')
+
             for p1 in range(len(Stroki) - 1, 0, -1):
                 if "Начат" == Stroki[p1][7] and self.ui.label_3_tek_polz.text() == Stroki[p1][3]:
                     item = Stroki[p1]
@@ -823,30 +820,25 @@ class mywindow(QtWidgets.QMainWindow):
         # if returnValue == QtWidgets.QMessageBox.Ok:
         # print('OK clicked')
 
-    def obnov_spis_naryadov(self, ima):
+    def obnov_spis_naryadov(self, ima,Strokiz):
         spis_nar = []
         ima_2p = ima
         self.ui.comboBox_2_Naryad.clear()
-        arr_ima = [x for x in ima.split('  ')]
+        arr_ima = ima.split('  ')
         arr_ima.pop()
         ima = ' '.join(arr_ima).strip()
-
-        with open(cfg['BDzhurnal'] + '\\BDzhurnal.txt', 'r') as f:
-            Strokiz = f.readlines()
-        with open(cfg['Naryad'] + '\\Naryad.txt', 'r') as f:
-            Stroki = f.readlines()
-        for line in Stroki:
-            if ima in line or ima_2p in line:
+        Stroki = F.otkr_f(F.tcfg('Naryad'), False, "|")
+        for i in range(len(Stroki)):
+            if ima_2p == Stroki[i][17] or ima_2p == Stroki[i][18]:
                 if self.ui.comboBox_2_Naryad.count() < int(cfg['Dost_Nar']):
-                    arr = [x for x in line.split('|')]
                     flag_z = 0
-                    for linez in Strokiz:
-                        if "|" + arr[0] + '|' in linez and ima_2p in linez and '|Завершен|' in linez:
+                    for j in range(len(Strokiz)):
+                        if Stroki[i][0] == Strokiz[j][2] and Strokiz[j][3] == ima_2p and 'Завершен' == Strokiz[j][7]:
                             flag_z = 1
                             break
                     if flag_z == 0:
-                        self.ui.comboBox_2_Naryad.addItem(arr[0])
-                        spis_nar.append(arr[0])
+                        self.ui.comboBox_2_Naryad.addItem(Stroki[i][0])
+                        spis_nar.append(Stroki[i][0])
                 else:
                     break
         return spis_nar
@@ -856,15 +848,13 @@ class mywindow(QtWidgets.QMainWindow):
         if Nomer == '':
             return
         Tempp_sp = list()
-        with open(cfg['BDzhurnal'] + '\\BDzhurnal.txt', 'r') as f:
-            Strokiz = f.readlines()
-        for item in Strokiz:
-            if "|" + Nomer + "|" in item:
-                arr = [x.strip() for x in item.split("|")]
-                if arr[7] == 'Начат':
-                    item2 = arr[0] + '-' + arr[7] + ' ' + arr[3]
+        Strokiz = F.otkr_f(F.tcfg('BDzhurnal'), False, '|')
+        for i in range(len(Strokiz)):
+            if Strokiz[i][2] == Nomer:
+                if Strokiz[i][7] == 'Начат':
+                    item2 = Strokiz[i][0] + '-' + Strokiz[i][7] + ' ' + Strokiz[i][3]
                 else:
-                    item2 = arr[0] + '-' + arr[7] + ' ' + arr[3] + "(" + arr[10] + ")"
+                    item2 = Strokiz[i][0] + '-' + Strokiz[i][7] + ' ' + Strokiz[i][3] + "(" + Strokiz[i][10] + ")"
                 Tempp_sp.append(item2)
         for item in Tempp_sp:
             self.ui.listWidget_2.addItem(item)
