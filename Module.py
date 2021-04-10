@@ -31,6 +31,7 @@ class mywindow(QtWidgets.QMainWindow):
         super(mywindow, self).__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
+
         # self.setFixedSize(1280, 720)
         self.setWindowTitle('Учет выполнения нарядов')
         self.ui.pushButton.clicked.connect(self.log_in)
@@ -486,8 +487,7 @@ class mywindow(QtWidgets.QMainWindow):
             Stroki_opov.append(body)
             F.zap_f(F.tcfg('Opoveshenie_arh'), Stroki_opov, '')
 
-            Stroki_g = F.otkr_f(F.tcfg('BDzhurnal'), False, '|')
-            spis_nar = self.obnov_spis_naryadov(self.ui.label_3_tek_polz.text(),Stroki_g)
+            spis_nar = self.obnov_spis_naryadov(self.ui.label_3_tek_polz.text())
 
             if len(spis_nar) == 0:
                 Stroki_opov = F.otkr_f(F.tcfg('Opoveshenie'),False)
@@ -706,21 +706,7 @@ class mywindow(QtWidgets.QMainWindow):
     def but_obnov_spis_naryadov(self):
         if self.ui.label_3_tek_polz.text() == "":
             return
-        Stroki = F.otkr_f(F.tcfg('BDzhurnal'), False, "|")
-        self.obnov_spis_naryadov(self.ui.label_3_tek_polz.text(),Stroki)
-        for p1 in range(len(Stroki) - 1, -1, -1):
-            if "Начат" == Stroki[p1][7] and self.ui.label_3_tek_polz.text() == Stroki[p1][3]:
-                item = Stroki[p1]
-                flag_nach = 1
-                for p2 in range(p1 + 1, len(Stroki)):
-                    if item[2] == Stroki[p2][2] and \
-                            self.ui.label_3_tek_polz.text() == Stroki[p2][3]:
-                        if "Завершен" == Stroki[p2][7] or "Приостановлен" == Stroki[p2][7]:
-                            flag_nach = 0
-                            break
-                if flag_nach == 1:
-                    self.ui.label_10_tek_nar.setText(item[2])
-                    self.Zapolnit_chertegi(item[2])
+        self.obnov_spis_naryadov(self.ui.label_3_tek_polz.text())
 
 
     def log_in(self):
@@ -744,26 +730,11 @@ class mywindow(QtWidgets.QMainWindow):
         if parol == True:
             self.ui.label_3_tek_polz.setText(self.ui.comboBox.currentText())
             self.ui.lineEdit_2.clear()
-            Stroki = F.otkr_f(F.tcfg('BDzhurnal'), False, '|')
-            self.obnov_spis_naryadov(self.ui.label_3_tek_polz.text(),Stroki)
+            self.obnov_spis_naryadov(self.ui.label_3_tek_polz.text())
             self.ui.comboBox.setCurrentIndex(0)
             opovesh_body = FNC.opovesh().strip()
             if opovesh_body != '':
                 self.showDialog(opovesh_body)
-
-            for p1 in range(len(Stroki) - 1, 0, -1):
-                if "Начат" == Stroki[p1][7] and self.ui.label_3_tek_polz.text() == Stroki[p1][3]:
-                    item = Stroki[p1]
-                    flag_nach = 1
-                    for p2 in range(p1 + 1, len(Stroki)):
-                        if item[2] == Stroki[p2][2] and self.ui.label_3_tek_polz.text() == Stroki[p2][3]:
-                            if "Завершен" == Stroki[p2][7] or "Приостановлен" == Stroki[p2][7]:
-                                flag_nach = 0
-                                break
-                    if flag_nach == 1:
-                        self.ui.label_10_tek_nar.setText(item[2])
-                        self.Zapolnit_chertegi(item[2])
-                    break
         else:
             self.showDialog("Не верный пароль")
             self.ui.lineEdit_2.clear()
@@ -820,27 +791,70 @@ class mywindow(QtWidgets.QMainWindow):
         # if returnValue == QtWidgets.QMessageBox.Ok:
         # print('OK clicked')
 
-    def obnov_spis_naryadov(self, ima,Strokiz):
+    def obnov_spis_naryadov(self, ima):
         spis_nar = []
         ima_2p = ima
         self.ui.comboBox_2_Naryad.clear()
         arr_ima = ima.split('  ')
         arr_ima.pop()
         ima = ' '.join(arr_ima).strip()
+        Strokiz = F.otkr_f(F.tcfg('BDzhurnal'), False, "|")
         Stroki = F.otkr_f(F.tcfg('Naryad'), False, "|")
+        flag_change_nar = False
         for i in range(len(Stroki)):
             if ima_2p == Stroki[i][17] or ima_2p == Stroki[i][18]:
-                if self.ui.comboBox_2_Naryad.count() < int(cfg['Dost_Nar']):
-                    flag_z = 0
-                    for j in range(len(Strokiz)):
-                        if Stroki[i][0] == Strokiz[j][2] and Strokiz[j][3] == ima_2p and 'Завершен' == Strokiz[j][7]:
-                            flag_z = 1
+                status_got = False
+                if Stroki[i][17] != "" and Stroki[i][18] == "" and Stroki[i][19] == "+/-":
+                    status_got = True
+                if Stroki[i][17] == "" and Stroki[i][18] != "" and Stroki[i][19] == "-/+":
+                    status_got = True
+                if Stroki[i][17] != "" and Stroki[i][18] != "" and Stroki[i][19] == "+/+":
+                    status_got = True
+                if status_got == False:
+                    if Stroki[i][19] == "":
+                        Stroki[i][19] = "-/-"
+                        flag_change_nar = True
+                    if self.ui.comboBox_2_Naryad.count() < int(cfg['Dost_Nar']):
+                        flag_z = 0
+                        for j in range(len(Strokiz)):
+                            if Stroki[i][0] == Strokiz[j][2] and Strokiz[j][3] == ima_2p and 'Завершен' == Strokiz[j][
+                                7]:
+                                flag_z = 1
+                                tmp19 = Stroki[i][19].split('/')
+                                if ima_2p == Stroki[i][17]:
+                                    if tmp19[0] != "+":
+                                        tmp19[0] = "+"
+                                        flag_change_nar = True
+                                else:
+                                    if tmp19[1] != "+":
+                                        tmp19[1] = "+"
+                                        flag_change_nar = True
+                                Stroki[i][19] = "/".join(tmp19)
+                                break
+
+                        if flag_z == 0:
+                            self.ui.comboBox_2_Naryad.addItem(Stroki[i][0])
+                            spis_nar.append(Stroki[i][0])
+                    else:
+                        break
+        if flag_change_nar == True:
+            F.zap_f(F.tcfg('Naryad'), Stroki, "|")
+
+        for p1 in range(len(Strokiz) - 1, 0, -1):
+            if Strokiz[p1][7] == "Начат" and self.ui.label_3_tek_polz.text() == Strokiz[p1][3]:
+                item = Strokiz[p1]
+                flag_zaversh = False
+                for p2 in range(p1 + 1, len(Strokiz)):
+                    if item[2] == Strokiz[p2][2] and \
+                            self.ui.label_3_tek_polz.text() == Strokiz[p2][3]:
+                        if Strokiz[p2][7] == "Завершен" or Strokiz[p2][7] == "Приостановлен":
+                            flag_zaversh = True
                             break
-                    if flag_z == 0:
-                        self.ui.comboBox_2_Naryad.addItem(Stroki[i][0])
-                        spis_nar.append(Stroki[i][0])
-                else:
-                    break
+                if flag_zaversh == False:
+                    self.ui.label_10_tek_nar.setText(item[2])
+                    self.Zapolnit_chertegi(item[2])
+                break
+
         return spis_nar
 
     def History_nar(self, Nomer):
