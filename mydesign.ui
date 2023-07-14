@@ -507,6 +507,9 @@
     </item>
     <item>
      <widget class="QTabWidget" name="tabWidget_2">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
       <property name="font">
        <font>
         <pointsize>12</pointsize>
@@ -1440,6 +1443,9 @@
        <layout class="QVBoxLayout" name="verticalLayout_16">
         <item>
          <widget class="QTabWidget" name="tabWidget_3">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
           <property name="tabPosition">
            <enum>QTabWidget::West</enum>
           </property>
@@ -1468,15 +1474,21 @@
           </widget>
           <widget class="QWidget" name="tab_9">
            <attribute name="title">
-            <string>Схема</string>
+            <string>Предыдущий месяц</string>
            </attribute>
            <layout class="QVBoxLayout" name="verticalLayout_17">
             <item>
-             <widget class="QLabel" name="lbl_fon">
-              <property name="text">
-               <string/>
+             <widget class="QTableWidget" name="tbl_stat_filtr_last">
+              <property name="maximumSize">
+               <size>
+                <width>16777215</width>
+                <height>55</height>
+               </size>
               </property>
              </widget>
+            </item>
+            <item>
+             <widget class="QTableWidget" name="tbl_stat_last"/>
             </item>
            </layout>
           </widget>
@@ -1739,6 +1751,7 @@
     </widget>
     <addaction name="action_change_pass"/>
     <addaction name="action_noviy_user"/>
+    <addaction name="action_reset_parol"/>
     <addaction name="action_info"/>
     <addaction name="separator"/>
     <addaction name="vigruzka"/>
@@ -1752,7 +1765,7 @@
    </property>
    <property name="font">
     <font>
-     <pointsize>14</pointsize>
+     <pointsize>16</pointsize>
     </font>
    </property>
   </action>
@@ -1784,6 +1797,16 @@
   <action name="zayav_pererabotchik">
    <property name="text">
     <string>Заявка переработчику</string>
+   </property>
+  </action>
+  <action name="action_reset_parol">
+   <property name="text">
+    <string>Сбросить пароль</string>
+   </property>
+   <property name="font">
+    <font>
+     <pointsize>12</pointsize>
+    </font>
    </property>
   </action>
  </widget>

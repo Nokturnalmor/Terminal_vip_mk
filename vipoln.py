@@ -2,18 +2,18 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtWinExtras import QtWin
 import os
 import user_mange as userm
-import Cust_Qt as CQT
+import project_cust_38.Cust_Qt as CQT
 CQT.conver_ui_v_py()
 from mydesign import Ui_MainWindow  # импорт нашего сгенерированного файла
 import config
 import sys
-import Cust_Functions as F
-import Cust_SQLite as CSQ
-import Cust_mes as CMS
-import Cust_QtGui as CGUI
+import project_cust_38.Cust_Functions as F
+import project_cust_38.Cust_SQLite as CSQ
+import project_cust_38.Cust_mes as CMS
+import project_cust_38.Cust_QtGui as CGUI
 from datetime import timedelta
 from datetime import datetime as DT
-from otcheti import virabotka_sotr
+from project_cust_38.otcheti import virabotka_sotr
 cfg = config.Config('Config\CFG.cfg')  # файл конфига, находится п папке конфиг
 
 F.test_path()
@@ -23,7 +23,7 @@ class mywindow(QtWidgets.QMainWindow):
         super(mywindow, self).__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-        self.versia =  '1.271'
+        self.versia =  '1.4.4.1'
         # ===========================================connects
         # ==================BTN
         self.ui.btn_login.clicked.connect(lambda _, x=self: userm.log_in(x))
@@ -38,12 +38,10 @@ class mywindow(QtWidgets.QMainWindow):
         self.ui.cmb_zamechain.activated[int].connect(self.vibor_zamech)
         #==== GLOBALS
         self.glob_login = ''
+        self.glob_fio = ''
         self.user_score = None
         self.glob_summ_treb_chas_tabel = 0
-        self.bd_naryad = F.bdcfg('Naryad')
-        self.bd_users = F.bdcfg('BD_users')
-        self.db_resxml = F.bdcfg('db_resxml')
-        self.db_dse = F.bdcfg('db_dse')
+
         # =======tbls
         self.ui.tbl_naryadi.cellDoubleClicked[int,int].connect(self.load_naruad)
         self.ui.tbl_naryadi.clicked.connect(self.tbl_naryadi_click)
@@ -63,23 +61,28 @@ class mywindow(QtWidgets.QMainWindow):
         #======ACTIONS
         self.ui.action_noviy_user.triggered.connect(lambda _, x = self: userm.reg_new_user(x))
         self.ui.action_change_pass.triggered.connect(lambda _, x = self: userm.change_user_pass(x))
+        self.ui.action_reset_parol.triggered.connect(lambda _, x=self: userm.reset_user_pass(x))
         self.ui.peresilniy.triggered.connect(self.create_peresilniy)
         self.ui.ved_komplekt.triggered.connect(self.create_ved_komplekt)
         self.ui.zayav_pererabotchik.triggered.connect(self.create_zayav_pererab)
         # ============DB
-        self.db_naryd = F.scfg('BDzhurnal') + F.sep() + 'Naryad.db'
+        self.db_naryd = F.bdcfg('Naryad')
+        self.bd_naryad = self.db_naryd
+        self.bd_users = F.bdcfg('BD_users')
+        self.db_resxml = F.bdcfg('db_resxml')
+        self.db_dse = F.bdcfg('BD_dse')
         #self.db_mk = F.bdcfg('bd_mk')
         #self.db_dse = F.bdcfg('BD_dse')
         self.db_act = F.scfg('BDact') + F.sep() + 'BDact.db'
         # =======loads
         conn,cur = CSQ.connect_bd(self.db_naryd,100)
-        self.check_lock_db(CMS.dict_etapi(self, self.db_naryd,conn=conn),conn,cur)
+        self.check_lock_db(CMS.dict_etapi(self, self.db_naryd,""),"","")
         CSQ.close_bd(conn,cur)
         conn,cur = CSQ.connect_bd(self.bd_users)
         self.check_lock_db(userm.load_users(self,conn=conn, cur = cur), conn,cur)
         self.check_lock_db(CMS.dict_professions(self, self.bd_users, conn=conn), conn,cur)
         CSQ.close_bd(conn,cur)
-
+        self.DICT_EMPL_FULL = CMS.dict_emploee_full(self.bd_users)
         userm.load_po_dolg(self)
         self.setWindowTitle('Создание нарядов')
 
@@ -94,10 +97,9 @@ class mywindow(QtWidgets.QMainWindow):
         self.ui.lbl_instruction_docs.setText(f'Для ШГ и АО - srv-docs.powerz.ru:21361'
                                                 f'  Для КТ и ЛК - srv-docs.powerz.ru'
                                                 f'  Для КЛ и ТППР - srv-docs-pkb.powerz.ru')
-
+        CQT.load_css(self)
         # ====ВРЕМЕННО
         self.ui.cmb_dolgn.setCurrentIndex(4)
-        #self.vigruzka_trudozatrat_2()
         #self.proverka_zakritiya_naryadov_po_jurnaly()
         #self.ui.cmb_fio.setCurrentIndex(3)
         #self.ui.le_parol.setText('2022')
@@ -113,6 +115,19 @@ class mywindow(QtWidgets.QMainWindow):
             quit()
 
     def keyReleaseEvent(self, e):
+        if e.key() == 16777237 and e.modifiers() == (QtCore.Qt.ControlModifier):
+            if CQT.focus_is_QTableWidget():
+                for i in range(QtWidgets.QApplication.focusWidget().rowCount()):
+                    if QtWidgets.QApplication.focusWidget().rowHeight(i) > 0.5:
+                        QtWidgets.QApplication.focusWidget().setRowHeight(i,QtWidgets.QApplication.focusWidget().rowHeight(i) - 1)
+        if e.key() == 16777235 and e.modifiers() == (QtCore.Qt.ControlModifier):
+            if CQT.focus_is_QTableWidget():
+                for i in range(QtWidgets.QApplication.focusWidget().rowCount()):
+                    QtWidgets.QApplication.focusWidget().setRowHeight(i,QtWidgets.QApplication.focusWidget().rowHeight(i) + 1)
+
+        if e.key() == 67 and e.modifiers() == (QtCore.Qt.ControlModifier | QtCore.Qt.ShiftModifier):
+            if CQT.focus_is_QTableWidget():
+                CQT.copy_bufer_table(QtWidgets.QApplication.focusWidget())
         if self.ui.tbl_stat_filtr.hasFocus():
             if e.key() == 16777220:
                 CMS.primenit_filtr(self,self.ui.tbl_stat_filtr,self.ui.tbl_stat)
@@ -163,18 +178,15 @@ class mywindow(QtWidgets.QMainWindow):
             return
         name = self.ui.tabWidget_3.tabText(ind)
         CQT.statusbar_text(self)
-        if name == 'Схема':
-            dat = F.datetostr(DT.today())
-            konec = F.nach_kon_date(date=dat, vid='m')[1]
-            nach = F.nach_kon_date(date=dat, vid='m')[0]
-            rez_spis = virabotka_sotr(self, nach, konec, self.glob_login.replace(',', ' '))
-            nk_effect = F.nom_kol_po_im_v_shap(rez_spis, 'Дата')
-            nk_potabel = F.nom_kol_po_im_v_shap(rez_spis, 'Примеч_журнал')
-            nk_prem = F.nom_kol_po_im_v_shap(rez_spis, 'Задание')
-            effect = rez_spis[-2][nk_effect].split()[1]
-            potabel = F.valm(rez_spis[-2][nk_potabel].split()[2])
-            prem = rez_spis[-2][nk_prem]
-            self.load_info_imge(effect,potabel,prem)
+        if name == 'Предыдущий месяц':
+            dat = F.datetostr(F.add_months(DT.today(),-1))
+            self.load_statistic(dat,self.ui.tbl_stat_last,self.ui.tbl_stat_filtr_last)
+            tbl = self.ui.tbl_stat_last
+            CMS.primenit_summ(self, tbl)
+            CQT.cvet_cell_wtabl(tbl, 'Внеплан', '1', r=222, g=100, b=100)
+            CQT.cvet_cell_wtabl(tbl, 'Внеплан', '2', r=100, g=222, b=100)
+            CQT.cvet_cell_wtabl(tbl, 'Подтвержд_вып', '0', r=222, g=100, b=100)
+            CQT.cvet_cell_wtabl(tbl, 'Подтвержд_вып', '1', r=100, g=222, b=100)
 
     @CQT.onerror
     def tab_clcik(self,ind,*args):
@@ -213,21 +225,35 @@ class mywindow(QtWidgets.QMainWindow):
             if self.glob_login == "":
                 pass
             else:
-                dat = F.datetostr(DT.today())
-                konec = F.nach_kon_date(date=dat, vid='m')[1]
-                nach = F.nach_kon_date(date=dat, vid='m')[0]
-                rez_spis = virabotka_sotr(self, nach, konec, self.glob_login.replace(',',' '))
-                if rez_spis == None:
-                    return
-                nk_effect = F.nom_kol_po_im_v_shap(rez_spis,'Дата')
-                nk_potabel = F.nom_kol_po_im_v_shap(rez_spis, 'Примеч_журнал')
-                nk_prem = F.nom_kol_po_im_v_shap(rez_spis, 'Задание')
-                effect = rez_spis[-2][nk_effect].split()[1]
-                potabel = F.valm(rez_spis[-2][nk_potabel].split()[2])
-                prem = rez_spis[-2][nk_prem]
-                CQT.zapoln_wtabl(self, rez_spis, self.ui.tbl_stat, separ='', isp_shapka=True, max_vis_row=500)
-                CMS.zapolnit_filtr(self, self.ui.tbl_stat_filtr, self.ui.tbl_stat)
-                self.load_info_imge(effect,potabel,prem)
+                if self.ui.tabWidget_3.tabText(self.ui.tabWidget_3.currentIndex()) == 'Предыдущий месяц':
+                    dat = F.datetostr(F.add_months(DT.today(), -1))
+                    self.load_statistic(dat, self.ui.tbl_stat_last, self.ui.tbl_stat_filtr_last)
+                    tbl = self.ui.tbl_stat_last
+                else:
+                    dat = F.datetostr(DT.today())
+                    self.load_statistic(dat,self.ui.tbl_stat,self.ui.tbl_stat_filtr)
+                    tbl = self.ui.tbl_stat
+                CMS.primenit_summ(self, tbl)
+                CQT.cvet_cell_wtabl(tbl, 'Внеплан', '1', r=222, g=100, b=100)
+                CQT.cvet_cell_wtabl(tbl, 'Внеплан', '2', r=100, g=222, b=100)
+                CQT.cvet_cell_wtabl(tbl, 'Подтвержд_вып', '0', r=222, g=100, b=100)
+                CQT.cvet_cell_wtabl(tbl, 'Подтвержд_вып', '1', r=100, g=222, b=100)
+
+    def load_statistic(self,dat:str,tbl,filtr):
+        konec = F.nach_kon_date(date=dat, vid='m')[1]
+        nach = F.nach_kon_date(date=dat, vid='m')[0]
+        rez_spis = virabotka_sotr(self, nach, konec, self.glob_login.replace(',', ' '))
+        if rez_spis == None:
+            return
+        #nk_effect = F.nom_kol_po_im_v_shap(rez_spis, 'Дата')
+        #nk_potabel = F.nom_kol_po_im_v_shap(rez_spis, 'Примеч_журнал')
+        #nk_prem = F.nom_kol_po_im_v_shap(rez_spis, 'Задание')
+        #effect = rez_spis[-2][nk_effect].split()[1]
+        #potabel = F.valm(rez_spis[-2][nk_potabel].split()[2])
+        #prem = rez_spis[-2][nk_prem]
+        CQT.zapoln_wtabl(self, rez_spis, tbl, separ='', isp_shapka=True, max_vis_row=500)
+        CMS.zapolnit_filtr(self, filtr, tbl)
+        #self.load_info_imge(effect, potabel, prem)
 
 
     @CQT.onerror
@@ -272,6 +298,8 @@ class mywindow(QtWidgets.QMainWindow):
         for i in range(len(list_vid_rab_name)):
             vid = list_vid_rab_name[i]
             time = F.valm(list_time_oper[i])
+            if vid == '':
+                continue
             if vid not in self.DICT_VID_RABOT:
                 print(f'{vid} не в списке видов')
                 continue
@@ -281,10 +309,10 @@ class mywindow(QtWidgets.QMainWindow):
 
 
     @CQT.onerror
-    def check_dostupnosti_nar(self,nom_nar:int,conn='',cur= ''):
+    def check_dostupnosti_nar(self,nom_nar:int):
         zapros = f'''SELECT Пномер FROM naryad WHERE Пномер == {nom_nar} AND (ФИО=="{CMS.ima_po_emp(self.glob_login)}" AND Фвремя == "" 
                                 OR ФИО2=="{CMS.ima_po_emp(self.glob_login)}" AND Фвремя2 == "")'''
-        rez = CSQ.zapros(self.db_naryd, zapros,conn=conn,cur=cur)
+        rez = CSQ.zapros(self.db_naryd, zapros)
         if rez == False:
             return False
         if rez == None:
@@ -294,11 +322,10 @@ class mywindow(QtWidgets.QMainWindow):
         return False
 
 
-    @CQT.onerror
-    def vigruzka_trudozatrat_2(self,conn='', cur = ''):
+    def vigruzka_trudozatrat_3(self,conn='', cur = ''):
         spis_rez = []
         #if F.strtodate(F.now()) - timedelta(days=70) > F.strtodate('2022-11-01 00:00:01'):
-        data_nach = F.datetostr(F.strtodate(F.now()) - timedelta(days=70))
+        data_nach = F.datetostr(F.strtodate(F.now()) - timedelta(days=40))
         #else:
         #    data_nach = '2022-11-01 00:00:01'
         zapros = f'SELECT jurnal.Дата, ' \
@@ -322,113 +349,28 @@ class mywindow(QtWidgets.QMainWindow):
                  f' INNER JOIN mk' \
                  f' ON naryad.Номер_мк = mk.Пномер' \
                  f' WHERE jurnal.Статус == "Начат" AND naryad.Операции NOT LIKE "%Резка(ЧПУ)%" AND jurnal.Подытог > 0 and date(jurnal.Дата) > date("{data_nach}")'
+
         rez = CSQ.zapros(self.db_naryd, zapros,rez_dict=True,conn=conn, cur = cur)
         if rez == False or rez == None:
             return
         set_etapov = set()
         for i in range(1, len(rez)):
-            spis_oper = rez[i]['Операции'].split('|')
-            spis_time = rez[i]['Опер_время'].split('|')
-            spis_doley = []
-            spis_dse = rez[i]['ДСЕ'].split('|')
-            summ = 0
-            for t in spis_time:
-                summ += int(t)
-            for t in spis_time:
-                if summ == 0:
-                    spis_doley.append(0)
-                else:
-                    spis_doley.append(round(int(t)/summ,3))
-            spis_vid = rez[i]['Виды_работ'].split('|')
-            npp = 0
-            time = F.valm(int(rez[i]['Подытог']))
-            for j in range(len(spis_oper)):
-                oper_name = spis_oper[j].split('$')[1]
-                if oper_name in self.DICT_ETAPI:
-                    npp+=1
-                    nom_nar = str(rez[i]['Номер_наряда']) + str(npp)
-                    rez[i]['Виды_работ'] = self.DICT_ETAPI[oper_name]
-                    if rez[i]['Виды_работ'] == 'Вспомогательная':
-                        pass
-                    else:
-                        fiod = self.fiod(rez[i]['ФИО'])
-                        spis_rez.append([rez[i]['Дата'],rez[i]['Штамп'],nom_nar,fiod,rez[i]['НП$ПУ'],
-                                         rez[i]['Виды_работ'],spis_dse[j],rez[i]['Статус'],
-                                        "","",F.ochist_strok_pod_ima_fila(rez[i]['Примечание'])])
-                        time_sec = spis_doley[j]*time*60
-                        data_end = F.datetostr(F.strtodate(rez[i]['Дата']) + timedelta(seconds =time_sec))
-                        shtamp = F.shtamp_from_date(data_end)
-                        spis_rez.append(
-                            [data_end, shtamp, nom_nar, fiod, rez[i]['НП$ПУ'], rez[i]['Виды_работ'],spis_dse[j],"Завершен",
-                             round(spis_doley[j]*time), "", F.ochist_strok_pod_ima_fila(rez[i]['Примечание'])])
-                        set_etapov.add(rez[i]['Виды_работ'])
+            dolgn = self.DICT_EMPLOEE[rez[i]['ФИО']]
+            etap = self.DICT_PROFESSIONS_PSEUDONAME[dolgn]['этап']
+            fiod = self.fiod(rez[i]['ФИО'])
+            spis_dse =  rez[i]['ДСЕ'].split('|')[0]
+            spis_rez.append([rez[i]['Дата'], rez[i]['Штамп'], rez[i]['Номер_наряда'], fiod, rez[i]['НП$ПУ'],
+                             etap, spis_dse, rez[i]['Статус'],
+                             rez[i]['Подытог'], "Основной ФОТ", F.ochist_strok_pod_ima_fila(rez[i]['Примечание'])])
+            set_etapov.add(etap)
 
         for etap in set_etapov:
             tmp = []
             for item in spis_rez:
                 if etap == item[5]:
                     tmp.append(item)
-            F.save_file(F.scfg('employee') + F.sep() + f'Trudozatrati_2_{etap}.txt', tmp,utf=False)
+            F.save_file(F.scfg('employee') + F.sep() + f'Trudozatrati_3_{etap}.txt', tmp,utf=False)
         #F.zap_f(F.scfg('employee') + F.sep() + 'Trudozatrati.txt', spis_rez,separ='|',utf8=False)
-
-
-    @CQT.onerror
-    def vigruzka_trudozatrat_old(self,conn = ''): #off
-        spis_rez = []
-        data_nach = F.datetostr(F.strtodate(F.now()) - timedelta(days =70))
-        zapros = f'SELECT jurnal.Дата, ' \
-                 f'jurnal.Штамп, ' \
-                 f'jurnal.Номер_наряда, ' \
-                 f'jurnal.ФИО, ' \
-                 f'mk.Номер_проекта, ' \
-                 f'mk.Номер_заказа, ' \
-                 f'naryad.Операции, ' \
-                 f'naryad.Номер_мк, ' \
-                 f'jurnal.Статус, ' \
-                 f'naryad.Твремя, ' \
-                 f'jurnal.Подытог, ' \
-                 f'jurnal.Примечание, ' \
-                 f'naryad.Опер_время' \
-                f' FROM jurnal INNER JOIN naryad'\
-        f' ON jurnal.Номер_наряда = naryad.Пномер'\
-        f' INNER JOIN mk'\
-        f' ON naryad.Номер_мк = mk.Пномер'\
-        f' WHERE jurnal.Статус == "Начат" AND naryad.Операции NOT LIKE "%Резка(ЧПУ)%" AND jurnal.Подытог > 0 and date(jurnal.Дата) > date("{data_nach}")'
-        rez = CSQ.zapros(self.db_naryd,zapros,conn = conn)
-        rez[0][4] = "НП$ПУ"
-        rez[0][6] = "Этап"
-        rez[0][7] = "Ном_мк"
-
-        for i in range(1, len(rez)):
-            rez[i][4] = rez[i][4] + '$' + rez[i][5]
-            #rez[i][8] = f'Теор={rez[i][8]}'
-            #rez[i][9] = f'Факт={0}'
-            spis_oper = rez[i][6].split('|')
-            spis_time = rez[i][12].split('|')
-            npp = 0
-            time = round((int(rez[i][10])) * 60 + 1)
-            time_h = round(int(rez[i][10]) / 60, 2)
-            for j in range(len(spis_oper)):
-                oper_name = spis_oper[j].split('$')[1]
-                #time = round((int(spis_time[j]))*60 + 1)
-                if oper_name in self.DICT_ETAPI:
-                    npp+=1
-                    nom_nar = str(rez[i][2]) + str(npp)
-                    rez[i][6] = self.DICT_ETAPI[oper_name]
-                    if rez[i][6] == 'Вспомогательная':
-                        pass
-                    else:
-                        fiod = self.fiod(rez[i][3])
-                        spis_rez.append([rez[i][0],rez[i][1],nom_nar,fiod,rez[i][4],rez[i][6],"",rez[i][8],
-                                        "","",F.ochist_strok_pod_ima_fila(rez[i][11])])
-                        data_end = F.datetostr(F.strtodate(rez[i][0]) + timedelta(seconds =time))
-                        shtamp = F.shtamp_from_date(data_end)
-                        spis_rez.append(
-                            [data_end, shtamp, nom_nar, fiod, rez[i][4], rez[i][6],"","Завершен",
-                             f'Теор={time_h}', f'Факт={time_h}', F.ochist_strok_pod_ima_fila(rez[i][11])])
-                        break
-        #F.save_file(F.scfg('employee') + F.sep() + 'Trudozatrati.txt', spis_rez)
-        F.zap_f(F.scfg('employee') + F.sep() + 'Trudozatrati.txt', spis_rez,separ='|',utf8=False)
 
 
     @CQT.onerror
@@ -480,10 +422,8 @@ class mywindow(QtWidgets.QMainWindow):
 
     @CQT.onerror
     def calc_user_score(self,*args):
-        if self.user_score == None:
-            return
         basa = self.ui.le_basa.text()
-        dney = round(F.valm(self.user_score[7])/8,1)
+
 
         premia = self.ui.le_premia.text()
         brak = self.ui.le_brak.text()
@@ -492,24 +432,16 @@ class mywindow(QtWidgets.QMainWindow):
         itog.setText('-')
         if self.glob_login == "":
             return
-        fio = CMS.ima_po_emp(self.glob_login)
+
         if F.is_numeric(basa) == False:
             return
-        if F.is_numeric(dney) == False:
-            return
+
         if F.is_numeric(premia) == False:
             return
         if F.is_numeric(brak) == False:
             return
-        spis_prem = F.otkr_f(F.scfg('employee') + F.sep() + 'Virabotka_sbdn.txt', separ='|')
-        dney_tab = ""
-        for i in range(1,len(spis_prem)):
-            if spis_prem[i][0] in fio.replace('  ',' '):
-                dney_tab = F.valm(spis_prem[i][-1])/8
-                break
-        if dney_tab == '':
-            return
-        rez = round(F.valm(basa)* F.valm(dney)/ F.valm(dney_tab)*(F.valm(premia)-abs(F.valm(brak)))/100)
+
+        rez = round(F.valm(basa)*(F.valm(premia)-abs(F.valm(brak)))/100)
         itog.setText(str(rez))
 
     @CQT.onerror
@@ -604,9 +536,9 @@ class mywindow(QtWidgets.QMainWindow):
         spis_oper = rez[-1][1].split('|')
         nom_mk = rez[-1][2]
         set_docs = set()
-        conn_res, cur_res = CSQ.connect_bd(self.db_resxml)
-        res = CMS.load_res(nom_mk, conn=conn_res, cur=cur_res)
-        CSQ.close_bd(conn_res, cur_res)
+
+        res = CMS.load_res(nom_mk)
+
         for i in range(len(spis_kd)):
             naim , nn = spis_kd[i].split('$')
             nom_oper = spis_oper[i].split('$')[0]
@@ -630,10 +562,10 @@ class mywindow(QtWidgets.QMainWindow):
             return
         nom_nar = int(self.ui.lbl_nom_nar.text())
 
-        conn, cur = CSQ.connect_bd(self.db_naryd)
+
         zapros = f'''SELECT ДСЕ FROM naryad WHERE Пномер == {nom_nar}'''
-        rez = CSQ.zapros(self.db_naryd,zapros, conn =conn, cur=cur)
-        CSQ.close_bd(conn, cur)
+        rez = CSQ.zapros(self.db_naryd,zapros)
+
         list_dse = CSQ.zapros(self.db_dse,"""SELECT Путь_docs,Номенклатурный_номер FROM dse""", rez_dict=True)
 
         dict_dse = F.raskrit_dict(list_dse, 'Номенклатурный_номер')
@@ -684,9 +616,9 @@ class mywindow(QtWidgets.QMainWindow):
 
     @CQT.onerror
     def clear_naryad_bar(self,conn ='',cur = ''):
-        self.lbl_tek_narayd(CMS.ima_po_emp(self.glob_login),conn=conn, cur = cur)
+        self.lbl_tek_narayd(CMS.ima_po_emp(self.glob_login))
         tab = self.ui.tabWidget_2
-        tab.setCurrentIndex(CQT.nom_tab_po_imen(tab, 'Доступные наряды'))
+        #tab.setCurrentIndex(CQT.nom_tab_po_imen(tab, 'Доступные наряды'))
         self.ui.lbl_nom_nar.setText("")
         self.ui.lbl_sozdan.setText("")
         self.ui.lbl_proekt.setText("")
@@ -707,6 +639,9 @@ class mywindow(QtWidgets.QMainWindow):
         r = tblk.currentRow()
         nk_nar = CQT.nom_kol_po_imen(tblk, 'Пномер')
         nk_tvrem = CQT.nom_kol_po_imen(tblk, 'Твремя')
+        nk_mk = CQT.nom_kol_po_imen(tblk, 'Номер_мк')
+        if tblk.item(r,nk_nar).text() == '-':
+            return
         nom_nar = int(tblk.item(r,nk_nar).text())
         tvrema = F.valm(tblk.item(r,nk_tvrem).text())
         rub = self.raschet_stoimosti_naryada()
@@ -715,13 +650,16 @@ class mywindow(QtWidgets.QMainWindow):
             CQT.statusbar_text(self,f'Наряд №{nom_nar}, предварительно расценен на {rub_format} рублей',18,text_color='red')
         else:
             CQT.statusbar_text(self)
+
         conn, cur = CSQ.connect_bd(self.db_naryd,2)
-        CMS.specificaciya_naruad(self, tblk, tblv,conn=conn,cur=cur)
+        if int(tblk.item(r,nk_mk).text()) != 0:
+            CMS.specificaciya_naruad(self, tblk, tblv,conn='',cur='')
         zapros = f'''SELECT sum(Подытог) AS "Total Salary" FROM jurnal WHERE Номер_наряда == {nom_nar} AND ФИО == "{CMS.ima_po_emp(self.glob_login)}"'''
         rez = CSQ.zapros(self.db_naryd,zapros,conn=conn,cur=cur)
         zapros = f'''SELECT Штамп, Статус FROM jurnal WHERE Номер_наряда == {nom_nar} AND ФИО == "{CMS.ima_po_emp(self.glob_login)}" ORDER BY Пномер DESC LIMIT 1'''
         rez_last = CSQ.zapros(self.db_naryd, zapros,conn=conn,cur = cur)
         CSQ.close_bd(conn,cur)
+
         if rez == False or rez_last == False:
             CQT.msgbox(f'Не удалось получить подытог')
             return
@@ -735,8 +673,8 @@ class mywindow(QtWidgets.QMainWindow):
                 t_zadel = (F.time_metka() - rez_last[-1][0])//60
         raznica = tvrema-tfakt-t_zadel
         if raznica < 0:
-            CQT.ust_cvet_obj(self.ui.lbl_ostalos,244,11,11)
-            self.ui.lbl_ostalos.setText(f'По №{str(nom_nar)} дефицит {abs(raznica)} мин.')
+            CQT.ust_cvet_obj(self.ui.lbl_ostalos,111,221,111)
+            self.ui.lbl_ostalos.setText(f'По №{str(nom_nar)} дефицит {abs(raznica)} мин. НЕ ЗАКРЫВАЙ наряд, не доделав до конца работу. иначе за простой придется отчитываться.')
         else:
             CQT.ust_cvet_obj(self.ui.lbl_ostalos)
             self.ui.lbl_ostalos.setText(f'По №{str(nom_nar)} осталось {raznica} мин.')
@@ -749,7 +687,7 @@ class mywindow(QtWidgets.QMainWindow):
     def tbl_naryadi_click(self,*args):
         CQT.statusbar_text(self)
         self.time_ostalos_po_nar()
-        F.sleep(3)
+        #F.sleep(3)
 
 
     @CQT.onerror
@@ -759,6 +697,47 @@ class mywindow(QtWidgets.QMainWindow):
         nk_dse = CQT.nom_kol_po_imen(tblv, 'Операции')
         self.ui.lbl_kompl_info.setText(tblv.item(r,nk_dse).text())
 
+    @CQT.onerror
+    def open_dir_chpy(self, line:str):
+        if line == '':
+            return
+        try:
+            path = '_'.join(line.split('_')[2:])
+            if F.nalich_file(path):
+                F.otkr_papky(path)
+        except:
+            CQT.msgbox(f'Ошибка обработки строки')
+
+    def load_prostoy_nar(self):
+        tbl = self.ui.tbl_naryadi
+        tab = self.ui.tabWidget_2
+        r = tbl.currentRow()
+        nk_dat = CQT.nom_kol_po_imen(tbl, 'Дата')
+        nk_np = CQT.nom_kol_po_imen(tbl, 'Номер_проекта')
+        nk_nz = CQT.nom_kol_po_imen(tbl, 'Номер_заказа')
+        nk_vrem = CQT.nom_kol_po_imen(tbl, 'Твремя')
+        nk_nom_mk = CQT.nom_kol_po_imen(tbl, 'Номер_мк')
+        nk_fio = CQT.nom_kol_po_imen(tbl, 'ФИО')
+        nk_fio2 = CQT.nom_kol_po_imen(tbl, 'ФИО2')
+        nk_zadanie = CQT.nom_kol_po_imen(tbl, 'Задание')
+
+        sozdan = tbl.item(r, nk_dat).text()
+        proj = tbl.item(r, nk_np).text() + ' ' + tbl.item(r, nk_nz).text()
+        vrem = tbl.item(r, nk_vrem).text()
+        mk = tbl.item(r, nk_nom_mk).text()
+        fio = tbl.item(r, nk_fio).text()
+        fio2 = tbl.item(r, nk_fio2).text()
+        zadanie = tbl.item(r, nk_zadanie).text()
+
+        self.ui.lbl_nom_nar.setText(str('-'))
+        self.ui.lbl_sozdan.setText(sozdan)
+        self.ui.lbl_proekt.setText(proj)
+        self.ui.lbl_norma.setText(vrem)
+        self.ui.lbl_nom_mk.setText(mk)
+        self.ui.lbl_isp1.setText(fio)
+        self.ui.lbl_isp2.setText(fio2)
+        self.ui.textBrowser_zadanie.setText(zadanie)
+        tab.setCurrentIndex(CQT.nom_tab_po_imen(tab, 'Управление нарядом'))
 
     @CQT.onerror
     def load_naruad(self,r,c,*args):
@@ -767,18 +746,24 @@ class mywindow(QtWidgets.QMainWindow):
         if tbl.currentRow() == -1:
             CQT.msgbox('Не выбран наряд')
             return
+        if tbl.horizontalHeaderItem(c).text() == 'Статус_ЧПУ':
+            self.open_dir_chpy(tbl.item(r,c).text())
+            return
         nk_nar = CQT.nom_kol_po_imen(tbl, 'Пномер')
+        if tbl.item(r,nk_nar).text() == '-':
+            self.load_prostoy_nar()
+            return
         nom_nar = int(tbl.item(r,nk_nar).text())
         conn, cur = CSQ.connect_bd(self.db_naryd)
-        if self.check_dostupnosti_nar(nom_nar,conn=conn) == False:
-            self.zapoln_tabl_naryadov(conn=conn,cur=cur)
+        if self.check_dostupnosti_nar(nom_nar) == False:
+            self.zapoln_tabl_naryadov()
             CSQ.close_bd(conn,cur)
             tab.setCurrentIndex(CQT.nom_tab_po_imen(tab, 'Доступные наряды'))
             CQT.msgbox('Наряд недоступен')
             return
         else:
             CSQ.close_bd(conn,cur)
-
+            pass
         nk_dat = CQT.nom_kol_po_imen(tbl,'Дата')
         nk_np = CQT.nom_kol_po_imen(tbl, 'Номер_проекта')
         nk_nz = CQT.nom_kol_po_imen(tbl, 'Номер_заказа')
@@ -807,43 +792,108 @@ class mywindow(QtWidgets.QMainWindow):
         tab.setCurrentIndex(CQT.nom_tab_po_imen(tab, 'Управление нарядом'))
 
     @CQT.onerror
-    def zapoln_tabl_naryadov(self,conn = '', cur = '',*args):
+    def zapoln_tabl_naryadov(self,*args):
         if self.glob_login == "":
-            CSQ.close_bd(conn, cur)
+
             CQT.msgbox('Необходимо войти')
             return
-        zapros = f'''   SELECT naryad.Пномер, naryad.Дата, naryad.Номер_мк, naryad.Задание, naryad.ФИО, naryad.ФИО2, 
+        zapros = f'''  SELECT naryad.Пномер, naryad.Дата, naryad.Номер_мк, naryad.Задание, naryad.ФИО, naryad.ФИО2, 
                         naryad.Твремя, naryad.Компл_номер_тара, naryad.Компл_адрес, naryad.Примечание,
-                        mk.Номер_проекта, mk.Номер_заказа, mk.Приоритет, naryad.Коэфф_сложности, naryad.Виды_работ, naryad.Опер_время
-                                FROM naryad INNER JOIN mk ON mk.Пномер = naryad.Номер_мк
-                        WHERE ФИО=="{CMS.ima_po_emp(self.glob_login)}" AND Фвремя == "" 
-                        OR ФИО2=="{CMS.ima_po_emp(self.glob_login)}" AND Фвремя2 == ""'''
-        rez = CSQ.zapros(self.db_naryd, zapros,conn, cur = cur)
-        if rez == False:
-            CSQ.close_bd(conn,cur)
+                        mk.Номер_проекта, mk.Номер_заказа, mk.Приоритет, naryad.Коэфф_сложности, naryad.Виды_работ, naryad.Опер_время, mk.Статус_ЧПУ, zagot.Прим_резка
+                                FROM naryad INNER JOIN mk ON mk.Пномер = naryad.Номер_мк 
+                                INNER JOIN zagot ON zagot.Ном_МК = naryad.Номер_мк 
+                        WHERE ((mk.Статус != "Закрыта" AND mk.Дата_завершения == "") OR (mk.Пномер = 0)) AND ((ФИО=="{CMS.ima_po_emp(self.glob_login)}" AND Фвремя == "") 
+                        OR (ФИО2=="{CMS.ima_po_emp(self.glob_login)}" AND Фвремя2 == ""));'''
+        rez = CSQ.zapros(self.db_naryd, zapros)
+        if rez == False or rez == None:
             CQT.msgbox(f'БД недоступна, пробуй еще')
             return
         self.ui.label_12.setText(f'План работ для {CMS.ima_po_emp(self.glob_login)} на {F.now()}')
         rez = F.sort_po_kol(rez,'Приоритет')
-
+        rez.insert(1,['-','-','-','ПРОСТОЙ',CMS.ima_po_emp(self.glob_login),'','1','','','ПРОСТОЙ','-','-','1','1.0','-','','',''])
         CQT.zapoln_wtabl(self, rez, self.ui.tbl_naryadi, separ='', isp_shapka=True)
+        CQT.add_btn(self.ui.tbl_naryadi, 0, 1, 'СОЗДАТЬ', True, self.create_prostoi_nar, '')
+        spis_prost = F.load_file(F.scfg('Riba') + F.sep() + 'Prich_prost.txt')
+        CQT.add_combobox(self,self.ui.tbl_naryadi, 0, 5, spis_prost, True,'')
         self.ui.tbl_naryadi.setColumnHidden(CQT.nom_kol_po_imen(self.ui.tbl_naryadi, 'Задание'), True)
-        self.ui.tbl_naryadi.setColumnHidden(CQT.nom_kol_po_imen(self.ui.tbl_naryadi, 'Дата'), True)
+        self.ui.tbl_naryadi.setColumnHidden(CQT.nom_kol_po_imen(self.ui.tbl_naryadi, 'Дата'), False)
         self.ui.tbl_naryadi.setColumnHidden(CQT.nom_kol_po_imen(self.ui.tbl_naryadi, 'Виды_работ'), True)
         self.ui.tbl_naryadi.setColumnHidden(CQT.nom_kol_po_imen(self.ui.tbl_naryadi, 'Опер_время'), True)
         self.lbl_tek_narayd(CMS.ima_po_emp(self.glob_login))
-        F.sleep(3)
+        #F.sleep(3)
+
+    def check_zav_nar(self,nom_nar,fio):
+        query = f'''SELECT Дата FROM jurnal WHERE Номер_наряда == {nom_nar} and Статус == "Завершен" and ФИО == "{fio}"'''
+        rez = CSQ.zapros(self.db_naryd,query,one=True)
+        if len(rez) == 1 or query == False:
+            return False
+        return True
+
+    def create_prostoi_nar(self,row,col):
+        primech = self.ui.tbl_naryadi.cellWidget(self.ui.tbl_naryadi.currentRow(),5).currentText()
+        if primech == '':
+            CQT.migat_obj(self,2,self.ui.tbl_naryadi,'Не указана причина простоя')
+            return False
+        date_nar = F.now()
+        stroka = [date_nar,
+                  CMS.ima_po_emp(self.glob_login),
+                  0,
+                  3,
+                  'ПРОСТОЙ',
+                  CMS.ima_po_emp(self.glob_login),
+                  date_nar,
+                  '-',
+                  '-',
+                  CMS.ima_po_emp(self.glob_login),
+                  '',
+                  '',
+                  '',
+                  1,
+                  '',
+                  '',
+                  '$',
+                  1,
+                  '',
+                  primech,
+                  1, 0, 10, '','']
+        zapros = f'''INSERT INTO naryad (Дата,	Автор,Номер_мк,Внеплан,Задание,Компл_ФИО,Компл_Дата,Компл_номер_тара,
+               Компл_адрес,ФИО,Фвремя,ФИО2,Фвремя2,Твремя,ДСЕ,ДСЕ_ID,Операции,Опер_время,Опер_колво,Примечание,Коэфф_сложности,
+               Подтвержд_вып,Категория_внепл,Виды_работ,Номер_замечания_журнал) VALUES ({", ".join(("?" * len(stroka)))});'''
+        # rez = CSQ.dob_strok_v_bd_sql(self.db_naryd, 'naryad', [stroka], conn= conn,cur = cur)
+        rez = CSQ.zapros(self.db_naryd, zapros, spisok_spiskov=[stroka])
+        if rez == False:
+            CQT.msgbox(f'Не удачно, попробуй позже')
+            return
+        nom_nar = CSQ.zapros(self.db_naryd, f"""SELECT Пномер FROM naryad WHERE Дата = '{date_nar}' 
+               AND Автор = '{CMS.ima_po_emp(self.glob_login)}' ORDER BY Пномер DESC LIMIT 1""")
+        try:
+            if len(nom_nar) != 2 or F.is_numeric(nom_nar[-1][0]) == False:
+                CQT.msgbox(f'Неудачно!, попробуй еще.')
+                return
+        except:
+            CQT.msgbox(f'Неудачно!, попробуй еще.')
+            return
+
+        self.zapoln_tabl_naryadov()
 
     @CQT.onerror
     def nachat_nar(self,*args):
-
-        nom_nar = int(self.ui.lbl_nom_nar.text())
+        if not CMS.check_actual_parol(self.glob_fio):
+            CQT.msgbox(f'Нужно обновить пароль через меню "Параметры"')
+            return
+        try:
+            nom_nar = int(self.ui.lbl_nom_nar.text())
+        except:
+            CQT.msgbox(f'Наряд не выбран')
+            return
         now = F.now()
         primech = self.ui.te_zamechain.toPlainText()
+        if not self.check_abstrakt(primech):
+            return
         stroka = [now,F.shtamp_from_date(now),nom_nar,CMS.ima_po_emp(self.glob_login),0,'Начат',primech, '']
 
         conn,cur = CSQ.connect_bd(self.db_naryd)
-        tek = self.tekush_naruad(CMS.ima_po_emp(self.glob_login),conn = conn,cur = cur)
+        tek = self.tekush_naruad(CMS.ima_po_emp(self.glob_login))
         if tek == False or tek ==  (False,False,False):
             CSQ.close_bd(conn,cur)
             CQT.msgbox(f'БД занята попробуй позже')
@@ -852,18 +902,22 @@ class mywindow(QtWidgets.QMainWindow):
             CSQ.close_bd(conn,cur)
             CQT.msgbox('Нельзя начать несколько нарядов одновременно')
             return
-
+        if self.check_zav_nar(nom_nar, CMS.ima_po_emp(self.glob_login)):
+            CSQ.close_bd(conn, cur)
+            CQT.msgbox(f'Наряд {nom_nar} уже завершен ранее')
+            return
         tab = self.ui.tabWidget_2
-        if self.check_dostupnosti_nar(nom_nar,conn=conn,cur=cur) == False:
+        if self.check_dostupnosti_nar(nom_nar) == False:
             tab.setCurrentIndex(CQT.nom_tab_po_imen(tab, 'Доступные наряды'))
             #self.zapoln_tabl_naryadov(conn = conn,cur= cur)
             CSQ.close_bd(conn,cur)
             CQT.msgbox('Наряд недоступен')
             return
 
-        rez = CSQ.zapros('',"""INSERT INTO jurnal
+        rez = CSQ.zapros(self.db_naryd,"""INSERT INTO jurnal
                               (Дата, Штамп, Номер_наряда,ФИО,Подытог,Статус,Примечание,Ном_заверш)
                               VALUES (?, ?, ?, ?, ?, ?, ?, ?);""", conn=conn,cur=cur, spisok_spiskov=[stroka])
+
         #rez = CSQ.dob_strok_v_bd_sql(self.db_naryd,'jurnal',[stroka], conn=conn)
         if rez != True:
             CSQ.close_bd(conn, cur)
@@ -873,15 +927,14 @@ class mywindow(QtWidgets.QMainWindow):
         self.clear_naryad_bar(conn=conn,cur = cur)
         CSQ.close_bd(conn,cur)
         CQT.msgbox('Наряд успешно запущен')
-        F.sleep(2)
+        #F.sleep(2)
 
     @CQT.onerror
-    def check_vibr_i_tek_nar(self,conn='',cur = ''):
-        nomer_naryada, pnomer, data_nach = self.tekush_naruad(CMS.ima_po_emp(self.glob_login),conn=conn,cur = cur)
+    def check_vibr_i_tek_nar(self):
+        nomer_naryada, pnomer, data_nach = self.tekush_naruad(CMS.ima_po_emp(self.glob_login))
         if nomer_naryada == False:
             return False, False
         if str(nomer_naryada) != self.ui.lbl_nom_nar.text():
-            CSQ.close_bd(conn,cur)
             CQT.msgbox('Выбран не запущенный наряд')
             return False, False
         return str(pnomer), data_nach
@@ -894,133 +947,166 @@ class mywindow(QtWidgets.QMainWindow):
     def zaversh_nar(self,*args):
         self.stop_nar("Завершен")
 
+    def check_abstrakt(self,primech):
+
+        if self.glob_fio not in self.DICT_EMPL_FULL:
+            CQT.msgbox(f'{self.glob_fio} не в БД')
+            return False
+        if self.DICT_EMPL_FULL[self.glob_fio]['Режим'] == 'Абстракт':
+            if primech == '':
+                CQT.msgbox(f'Не выбрано реальное ФИО в Примечании')
+                return False
+            if primech not in self.DICT_EMPL_FULL:
+                CQT.msgbox(f'{primech} не в БД')
+                return False
+        return True
+
     @CQT.onerror
     def stop_nar(self, vid_stop):
-        conn, cur = CSQ.connect_bd(self.db_naryd,2)
+
         try:
-            pnomer_nach, data_nach = self.check_vibr_i_tek_nar(conn=conn, cur =cur)
+            pnomer_nach, data_nach = self.check_vibr_i_tek_nar()
         except:
-            CSQ.close_bd(conn,cur)
             CQT.msgbox(f'Не удалось проверить текущий наряд, попробуй еще')
             return
-        if pnomer_nach != False:
-            #=======check==============
-            zadanie = self.ui.textBrowser_zadanie.toPlainText()
-            primech = self.ui.te_zamechain.toPlainText().strip()
-            nom_nar = int(self.ui.lbl_nom_nar.text())
-            tab = self.ui.tabWidget_2
-            if self.check_dostupnosti_nar(nom_nar,conn) == False:
-                tab.setCurrentIndex(CQT.nom_tab_po_imen(tab, 'Доступные наряды'))
-                self.zapoln_tabl_naryadov(conn=conn,cur= cur)
-                CSQ.close_bd(conn,cur)
-                CQT.msgbox('Наряд недоступен')
-                return
-            last_status_nar = CSQ.zapros(self.db_naryd,f"""SELECT Статус FROM jurnal WHERE Номер_наряда == {nom_nar} 
-                and ФИО == "{CMS.ima_po_emp(self.glob_login)}" ORDER BY Пномер DESC LIMIT 1""", conn= conn, cur =cur)[-1][0]
-            if last_status_nar != 'Начат':
-                CSQ.close_bd(conn,cur)
-                CQT.msgbox('Статус наряда не позволяет выполнить действие')
-                return
-            if vid_stop == 'Приостановлен':
-                if primech == '' or len(primech) < 4:
-                    CSQ.close_bd(conn,cur)
-                    CQT.migat_obj(self,2,self.ui.te_zamechain,'Не указана причина паузы')
-                    return
-            nom_mk = int(self.ui.lbl_nom_mk.text())
-            now = F.now()
-            #==========precalc_time==========
-            date_diff = F.strtodate(F.now()) - F.strtodate(data_nach)
-            poditog = round(date_diff.total_seconds()/60)
-            poditog = 1 if poditog < 1 else poditog
-            #==========установить время выполнения на строку начало==========
-            zapros = f'UPDATE jurnal SET Подытог == ? WHERE Пномер == ?'
-            param = [poditog,int(pnomer_nach)]
-            try:
-                CSQ.zapros(self.db_naryd, zapros,spisok_spiskov=param,conn=conn, cur = cur)
-            except:
-                CSQ.close_bd(conn,cur)
-                CQT.msgbox(f'Ошибка занесения в Журнал')
-                return
-            #==================добавление новой строки паузы================
-            stroka = [now, F.shtamp_from_date(now), nom_nar, CMS.ima_po_emp(self.glob_login), 0,
-                      vid_stop, primech, '']
-            try:
-                CSQ.dob_strok_v_bd_sql(self.db_naryd, 'jurnal', [stroka],conn=conn)
-            except:
-                CSQ.zapros(self.db_naryd, f'UPDATE jurnal SET Подытог == 0 WHERE Пномер == {int(pnomer_nach)}',
-                           conn=conn, cur =cur)
-                CSQ.close_bd(conn,cur)
-                CQT.msgbox(f'Ошибка занесения в Журнал_2 попробуй позже')
-                return
-            if vid_stop == 'Завершен':
-                zapros = f'''SELECT sum(Подытог) AS "Total Salary"
-                              FROM jurnal
-                             WHERE ФИО == "{CMS.ima_po_emp(self.glob_login)}" AND Статус == "Начат" 
-                            AND Номер_наряда == {nom_nar}'''
-                fact_vr = CSQ.zapros(self.db_naryd, zapros,conn=conn, cur = cur)[-1][0]
-                fact_vr = int(fact_vr)
-                zapros = f'UPDATE naryad SET Фвремя == {fact_vr} WHERE ФИО == "{CMS.ima_po_emp(self.glob_login)}" AND Пномер == {nom_nar}'
-                CSQ.zapros(self.db_naryd, zapros,conn=conn, cur = cur)
-                zapros = f'UPDATE naryad SET Фвремя2 == {fact_vr} WHERE ФИО2 == "{CMS.ima_po_emp(self.glob_login)}" AND Пномер == {nom_nar}'
-                CSQ.zapros(self.db_naryd, zapros,conn=conn, cur = cur)
-                try:
-                    if "Исправление" in zadanie and 'Акт №' in zadanie:
-                        tmp = zadanie.split('Акт №')
-                        act = tmp[-1].split()[0]
-                        if F.is_numeric(act):
-                            zapros = f'''UPDATE act SET Наряд_исправления == {nom_nar}, Время_исправления == {fact_vr} WHERE Пномер == {int(act)}'''
-                            CSQ.zapros(self.db_act,zapros,conn=conn, cur = cur)
-                except:
-                    CSQ.close_bd(conn,cur)
-                    CQT.msgbox('Ошибка занесения отметки в акты о браке')
-                    return
+        if pnomer_nach == False:
+            return
 
-                #====================Запись завершенных дсе===============
-                zapros = f'''SELECT ДСЕ,Операции,Опер_колво,ДСЕ_ID,Внеплан FROM naryad WHERE Пномер == {nom_nar}'''
-                query = CSQ.zapros(self.db_naryd, zapros,conn=conn, cur = cur)
-                if query == False:
-                    CSQ.close_bd(conn, cur)
-                    CQT.msgbox(f'Не выполнена запись ДСЕ в МК')
-                    return
-                if query[-1][4] == 0:
-                    conn_res, cur_res = CSQ.connect_bd(self.db_resxml)
-                    res = CMS.load_res(nom_mk, conn=conn_res, cur=cur_res)
-                    CSQ.close_bd(conn_res, cur_res)
+        #=======check==============
+        zadanie = self.ui.textBrowser_zadanie.toPlainText()
+        primech = self.ui.te_zamechain.toPlainText().strip()
 
-                    spis_dse = query[-1][0].split('|')
-                    spis_oper = query[-1][1].split('|')
-                    spis_kolvo = query[-1][2].split('|')
-                    spis_id = query[-1][3].split('|')
-                    for i in range(len(spis_dse)):
-                        dse_naim, dse_nn = spis_dse[i].split('$')
-                        oper_nom, oper_naim = spis_oper[i].split('$')
-                        kolvo = spis_kolvo[i]
-                        id = spis_id[i]
-                        flag_add = False
-                        for j,res_dse in enumerate(res):
-                            if res_dse['Наименование'] == dse_naim and res_dse['Номенклатурный_номер'] == dse_nn and id == str(res_dse['Номерпп']):
-                                for k,oper in enumerate(res_dse['Операции']):
-                                    if oper['Опер_номер'] == oper_nom:
-                                        if 'Закрыто,шт.' in oper:
-                                            res[j]['Операции'][k]['Закрыто,шт.'] += int(kolvo)
-                                        else:
-                                            res[j]['Операции'][k]['Закрыто,шт.'] = int(kolvo)
-                                        flag_add = True
-                                        break
-                            if flag_add:
-                                break
-                    CMS.save_res(self.db_resxml,nom_mk,res)
-                    #========================================================
-                self.zapoln_tabl_naryadov(conn,cur= cur)
-                self.vigruzka_trudozatrat_2(conn, cur = cur)
-            self.clear_naryad_bar(conn=conn, cur = cur)
-            CSQ.close_bd(conn,cur)
-            CQT.msgbox(f'Наряд успешно {vid_stop}')
-            F.sleep(1)
-            #=================================================
-            #self.add_opoveshenie(vid_stop,nom_nar,nom_mk, self.glob_login.replace(',',' '),F.ochist_strok_pod_ima_fila(primech))
-        else:
-            CSQ.close_bd(conn,cur)
+        nom_nar = int(self.ui.lbl_nom_nar.text())
+        tab = self.ui.tabWidget_2
+        if self.check_dostupnosti_nar(nom_nar) == False:
+            tab.setCurrentIndex(CQT.nom_tab_po_imen(tab, 'Доступные наряды'))
+            self.zapoln_tabl_naryadov()
+
+            CQT.msgbox('Наряд недоступен')
+            return
+        last_status_nar = CSQ.zapros(self.db_naryd,f"""SELECT Статус FROM jurnal WHERE Номер_наряда == {nom_nar} 
+            and ФИО == "{CMS.ima_po_emp(self.glob_login)}" ORDER BY Пномер DESC LIMIT 1""")[-1][0]
+        if last_status_nar != 'Начат':
+
+            CQT.msgbox('Статус наряда не позволяет выполнить действие')
+            return
+        if vid_stop == 'Приостановлен':
+            if primech == '' or len(primech) < 4:
+
+                CQT.migat_obj(self,2,self.ui.te_zamechain,'Не указана причина паузы')
+                return
+        if not self.check_abstrakt(primech):
+            return
+        nom_mk = int(self.ui.lbl_nom_mk.text())
+        now = F.now()
+        #==========precalc_time==========
+        date_diff = F.strtodate(F.now()) - F.strtodate(data_nach)
+        poditog = round(date_diff.total_seconds()/60)
+        poditog = 1 if poditog < 1 else poditog
+        #==========установить время выполнения на строку начало==========
+        zapros = f'UPDATE jurnal SET Подытог == ? WHERE Пномер == ?'
+        param = [poditog,int(pnomer_nach)]
+        try:
+            CSQ.zapros(self.db_naryd, zapros,spisok_spiskov=param)
+        except:
+
+            CQT.msgbox(f'Ошибка занесения в Журнал')
+            return
+        #==================добавление новой строки паузы================
+        shtamp = F.shtamp_from_date(now)
+        stroka = [now, shtamp, nom_nar, CMS.ima_po_emp(self.glob_login), 0,
+                  vid_stop, primech, '']
+
+
+
+
+        CSQ.zapros(self.db_naryd, f"INSERT INTO jurnal "
+                                      f"(Дата, Штамп, Номер_наряда,ФИО,Подытог,Статус,Примечание,Ном_заверш)"
+                                      f" VALUES  (?,?,?,?,?,?,?,?)", spisok_spiskov=[stroka],
+                       )
+        check = CSQ.zapros(self.db_naryd, f"""SELECT Пномер FROM jurnal WHERE Штамп = '{shtamp}' and ФИО == '{CMS.ima_po_emp(self.glob_login)}'; """,one=True)
+        if len(check) == 1:
+            CQT.msgbox(f'Ошибка занесения в Журнал_3 попробуй позже')
+            return
+
+        if vid_stop == 'Завершен':
+            zapros = f'''SELECT sum(Подытог) AS "Total Salary"
+                          FROM jurnal
+                         WHERE ФИО == "{CMS.ima_po_emp(self.glob_login)}" AND Статус == "Начат" 
+                        AND Номер_наряда == {nom_nar}'''
+            fact_vr = CSQ.zapros(self.db_naryd, zapros)[-1][0]
+            fact_vr = int(fact_vr)
+
+            new_name = CMS.ima_po_emp(self.glob_login)
+
+            if self.DICT_EMPL_FULL[self.glob_fio]['Режим'] == 'Абстракт':
+                new_name = primech
+                zapros = f'UPDATE jurnal SET ФИО = "{new_name}" WHERE ФИО == "{CMS.ima_po_emp(self.glob_login)}" AND Номер_наряда == {nom_nar}'
+                CSQ.zapros(self.db_naryd, zapros)
+                print(f'Замена абстракта {CMS.ima_po_emp(self.glob_login)} на {new_name}')
+
+            zapros = f'UPDATE naryad SET Фвремя = {fact_vr}, ФИО = "{new_name}" WHERE ФИО == "{CMS.ima_po_emp(self.glob_login)}" AND Пномер == {nom_nar}'
+            CSQ.zapros(self.db_naryd, zapros)
+            zapros = f'UPDATE naryad SET Фвремя2 == {fact_vr}, ФИО2 = "{new_name}" WHERE ФИО2 == "{CMS.ima_po_emp(self.glob_login)}" AND Пномер == {nom_nar}'
+            CSQ.zapros(self.db_naryd, zapros)
+
+
+            try:
+                if "Исправление" in zadanie and 'Акт №' in zadanie:
+                    tmp = zadanie.split('Акт №')
+                    act = tmp[-1].split()[0]
+                    if F.is_numeric(act):
+                        zapros = f'''UPDATE act SET Наряд_исправления == {nom_nar}, Время_исправления == {fact_vr} WHERE Пномер == {int(act)}'''
+                        CSQ.zapros(self.db_act,zapros)
+            except:
+                CQT.msgbox('Ошибка занесения отметки в акты о браке')
+                return
+
+            #====================Запись завершенных дсе===============
+            zapros = f'''SELECT ДСЕ,Операции,Опер_колво,ДСЕ_ID,Внеплан FROM naryad WHERE Пномер == {nom_nar}'''
+            query = CSQ.zapros(self.db_naryd, zapros)
+            if query == False:
+
+                CQT.msgbox(f'Не выполнена запись ДСЕ в МК')
+                return
+            if query[-1][4] == 0:
+
+                res = CMS.load_res(nom_mk)
+
+
+                spis_dse = query[-1][0].split('|')
+                spis_oper = query[-1][1].split('|')
+                spis_kolvo = query[-1][2].split('|')
+                spis_id = query[-1][3].split('|')
+                for i in range(len(spis_dse)):
+                    dse_naim, dse_nn = spis_dse[i].split('$')
+                    oper_nom, oper_naim = spis_oper[i].split('$')
+                    kolvo = spis_kolvo[i]
+                    id = spis_id[i]
+                    flag_add = False
+                    for j,res_dse in enumerate(res):
+                        if res_dse['Наименование'] == dse_naim and res_dse['Номенклатурный_номер'] == dse_nn and id == str(res_dse['Номерпп']):
+                            for k,oper in enumerate(res_dse['Операции']):
+                                if oper['Опер_номер'] == oper_nom:
+                                    if 'Закрыто,шт.' in oper:
+                                        res[j]['Операции'][k]['Закрыто,шт.'] += int(kolvo)
+                                    else:
+                                        res[j]['Операции'][k]['Закрыто,шт.'] = int(kolvo)
+                                    flag_add = True
+                                    break
+                        if flag_add:
+                            break
+                CMS.save_res(self.db_resxml,nom_mk,res)
+                #========================================================
+            self.zapoln_tabl_naryadov()
+
+        self.clear_naryad_bar()
+
+        CQT.msgbox(f'Наряд успешно {vid_stop}')
+        #F.sleep(1)
+        #=================================================
+        #self.add_opoveshenie(vid_stop,nom_nar,nom_mk, self.glob_login.replace(',',' '),F.ochist_strok_pod_ima_fila(primech))
+
 
 
     @CQT.onerror
@@ -1041,9 +1127,9 @@ class mywindow(QtWidgets.QMainWindow):
 
 
     @CQT.onerror
-    def lbl_tek_narayd(self,fio,conn='', cur = ''):
+    def lbl_tek_narayd(self,fio):
         self.ui.lbl_tek_nar.setText('')
-        rez = self.tekush_naruad(fio,conn=conn, cur = cur)
+        rez = self.tekush_naruad(fio)
         if rez == False or rez == (False,False,False):
             return
         if rez == None:
@@ -1055,16 +1141,16 @@ class mywindow(QtWidgets.QMainWindow):
 
 
     @CQT.onerror
-    def tekush_naruad(self,fio,conn = '',cur = ''):
+    def tekush_naruad(self,fio):
         zapros = f'''SELECT Номер_наряда, Пномер, Дата FROM jurnal WHERE ФИО == "{fio}" AND
                     Статус == "Начат" and  Подытог == 0'''
-        rez = CSQ.zapros(self.db_naryd, zapros, shapka=False,conn = conn,cur = cur)
+        rez = CSQ.zapros(self.db_naryd, zapros, shapka=False)
         if rez == False:
-            CSQ.close_bd(conn,cur)
+
             CQT.msgbox(f'Бд занята пробуй позже')
             return False, False, False
         if rez == None:
-            CSQ.close_bd(conn,cur)
+
             CQT.msgbox(f'Данные не получены')
             return False, False, False
         if len(rez) == 0:
